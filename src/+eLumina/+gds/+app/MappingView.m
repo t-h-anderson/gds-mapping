@@ -74,7 +74,9 @@ classdef MappingView < handle
 
             obj.ResultsTable = uitable(mid, ...
                 ColumnName = {'Signal', 'IEC Path', 'Status', 'Rule'}, ...
-                Data = cell(0, 4));
+                Data = cell(0, 4), ...
+                SelectionType = "row", ...
+                Multiselect = "on");
             obj.ResultsTable.Layout.Row = 1;
             obj.ResultsTable.Layout.Column = 1;
 
@@ -133,6 +135,7 @@ classdef MappingView < handle
             removeStyle(obj.ResultsTable);
             results = obj.Session.Results;
             if isempty(results)
+                obj.ResultsTable.Selection = [];
                 return
             end
 
@@ -144,14 +147,12 @@ classdef MappingView < handle
 
             sel = obj.RulesTable.Selection;
             if isempty(sel)
+                obj.ResultsTable.Selection = [];
                 return
             end
             ruleIdx = sel(1);
-            selectionStyle = uistyle(BackgroundColor = [0.82, 0.93, 1.0]);
             matchingRows = find(arrayfun(@(r) r.RuleIndex == ruleIdx, results));
-            for k = 1:numel(matchingRows)
-                addStyle(obj.ResultsTable, selectionStyle, "row", matchingRows(k));
-            end
+            obj.ResultsTable.Selection = matchingRows;
         end
 
         function onLoadModel(obj)
