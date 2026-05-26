@@ -54,6 +54,15 @@ classdef RuleSet < handle
             obj.Rules([idx, idx+1]) = obj.Rules([idx+1, idx]);
         end
 
+        function replace(obj, idx, rule)
+            arguments
+                obj
+                idx (1,1) double {mustBePositive, mustBeInteger}
+                rule (1,1) eLumina.gds.rules.MappingRule
+            end
+            obj.Rules(idx) = rule;
+        end
+
         function [matched, path, rule] = applyTo(obj, signal)
             arguments
                 obj

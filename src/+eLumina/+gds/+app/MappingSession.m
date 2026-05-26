@@ -100,6 +100,16 @@ classdef MappingSession < handle
             obj.recompute();
         end
 
+        function updateRule(obj, idx, rule)
+            arguments
+                obj
+                idx (1,1) double {mustBePositive, mustBeInteger}
+                rule (1,1) eLumina.gds.rules.MappingRule
+            end
+            obj.Rules.replace(idx, rule);
+            obj.recompute();
+        end
+
         function [matched, iecPath, source] = testSignal(obj, pathStr)
             %TESTSIGNAL Try the current rules against a hypothetical path.
             %   Stateless: does not touch Signals or Results.
