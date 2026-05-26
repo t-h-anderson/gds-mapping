@@ -9,7 +9,7 @@ classdef trunMapping < matlab.unittest.TestCase
             testCase.verifyEmpty(results);
         end
 
-        function tAllSignalsMatched(testCase)
+        function tAllSignalsMapped(testCase)
             r = eLumina.gds.rules.RegexRule( ...
                 Pattern = "^ref(\d+)/in(\d+)$", Template = "esca_${1}in${2}");
             rs = eLumina.gds.rules.RuleSet(r);
@@ -21,12 +21,12 @@ classdef trunMapping < matlab.unittest.TestCase
 
             testCase.verifyEqual(numel(results), 3);
             testCase.verifyEqual([results.Status], repmat( ...
-                eLumina.gds.map.ResultStatus.Matched, 1, 3));
+                eLumina.gds.map.ResultStatus.Mapped, 1, 3));
             paths = arrayfun(@(r) r.IecPath.Path, results);
             testCase.verifyEqual(paths, ["esca_1in1", "esca_1in2", "esca_2in1"]);
         end
 
-        function tMixedMatchedAndUnmapped(testCase)
+        function tMixedMappedAndUnmapped(testCase)
             r = eLumina.gds.rules.RegexRule( ...
                 Pattern = "^ref(\d+)/in(\d+)$", Template = "esca_${1}in${2}");
             rs = eLumina.gds.rules.RuleSet(r);
@@ -35,7 +35,7 @@ classdef trunMapping < matlab.unittest.TestCase
                 eLumina.gds.extract.SimulinkSignal("misc/orphan")];
             results = eLumina.gds.map.runMapping(sigs, rs);
 
-            testCase.verifyEqual(results(1).Status, eLumina.gds.map.ResultStatus.Matched);
+            testCase.verifyEqual(results(1).Status, eLumina.gds.map.ResultStatus.Mapped);
             testCase.verifyEqual(results(1).IecPath.Path, "esca_1in1");
             testCase.verifyEqual(results(2).Status, eLumina.gds.map.ResultStatus.Unmapped);
             testCase.verifyEqual(results(2).IecPath.Path, "");

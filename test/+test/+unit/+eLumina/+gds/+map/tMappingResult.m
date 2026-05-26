@@ -11,16 +11,16 @@ classdef tMappingResult < matlab.unittest.TestCase
             testCase.verifyEqual(r.RuleSource, "");
         end
 
-        function tMatchedCarriesPathAndSource(testCase)
+        function tMappedCarriesPathAndSource(testCase)
             sig = eLumina.gds.extract.SimulinkSignal("ref1/in2");
             path = eLumina.gds.iec.IecPath("esca_1in2");
             r = eLumina.gds.map.MappingResult(sig, ...
                 IecPath = path, ...
                 RuleSource = "regex: ^ref(\d+)/in(\d+)$", ...
-                Status = eLumina.gds.map.ResultStatus.Matched);
+                Status = eLumina.gds.map.ResultStatus.Mapped);
             testCase.verifyEqual(r.IecPath.Path, "esca_1in2");
             testCase.verifyEqual(r.RuleSource, "regex: ^ref(\d+)/in(\d+)$");
-            testCase.verifyEqual(r.Status, eLumina.gds.map.ResultStatus.Matched);
+            testCase.verifyEqual(r.Status, eLumina.gds.map.ResultStatus.Mapped);
         end
     end
 end

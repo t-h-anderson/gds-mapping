@@ -2,7 +2,7 @@ classdef ResultStatus
     %RESULTSTATUS Outcome of mapping a single Simulink signal.
 
     enumeration
-        Matched
+        Mapped
         Unmapped
     end
 end

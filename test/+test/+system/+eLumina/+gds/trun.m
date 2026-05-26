@@ -34,7 +34,7 @@ classdef trun < matlab.unittest.TestCase
             % Override beats the generic regex for ref2/in1
             override = results(byPath("ref2/in1"));
             testCase.verifyEqual(override.IecPath.Path, "esca_special_override");
-            testCase.verifyEqual(override.Status, eLumina.gds.map.ResultStatus.Matched);
+            testCase.verifyEqual(override.Status, eLumina.gds.map.ResultStatus.Mapped);
 
             % Generic regex fires for siblings
             ref1in1 = results(byPath("ref1/in1"));

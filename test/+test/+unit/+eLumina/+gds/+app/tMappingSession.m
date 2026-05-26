@@ -51,7 +51,7 @@ classdef tMappingSession < matlab.unittest.TestCase
                 Pattern = "^foo$", Template = "bar"));
 
             testCase.verifyEqual(s.Results(1).Status, ...
-                eLumina.gds.map.ResultStatus.Matched);
+                eLumina.gds.map.ResultStatus.Mapped);
             testCase.verifyEqual(s.Results(1).IecPath.Path, "bar");
         end
 
