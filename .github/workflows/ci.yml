@@ -29,7 +29,7 @@ jobs:
         uses: matlab-actions/run-command@v2
         with:
           command: |
-            addpath('src'); addpath('test');
+            addpath('src'); addpath('test'); addpath(genpath('extern'));
             mkdir('test-results');
             import matlab.unittest.plugins.XMLPlugin;
             import matlab.unittest.plugins.CodeCoveragePlugin;

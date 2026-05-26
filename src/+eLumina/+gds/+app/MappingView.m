@@ -2,10 +2,15 @@ classdef MappingView < handle
     %MAPPINGVIEW uifigure-based view bound to a MappingSession.
     %
     %   Widgets:
-    %     - Top buttons: Load Rules, Save Rules, Export Results
+    %     - Top buttons: Load Model, Load Rules, Export Results
     %     - Results table (Signal | IEC Path | Status | Rule)
     %     - Test panel: type a path, see matched rule + resolved IEC path
-    %     - Rules editor: list of rules + Add/Remove buttons
+    %     - Rules editor: list of rules + Add/Edit/Remove/Move/Save buttons
+    %
+    %   Uses gwidgets.Table for both tables — sort/filter/group via
+    %   right-click context menu. The results table also exposes the
+    %   filter row (ShowRowFilter = true); the rules table doesn't,
+    %   since order there is priority and the user controls it directly.
 
     properties (SetAccess = protected)
         Session (1,1) eLumina.gds.app.MappingSession
@@ -72,11 +77,15 @@ classdef MappingView < handle
             mid = uigridlayout(parent, [1 2], ColumnWidth = {"3x", "1x"});
             mid.Layout.Row = row; mid.Layout.Column = 1;
 
-            obj.ResultsTable = uitable(mid, ...
-                ColumnName = {'Signal', 'IEC Path', 'Status', 'Rule'}, ...
-                Data = cell(0, 4), ...
+            obj.ResultsTable = gwidgets.Table( ...
+                Parent = mid, ...
+                Data = obj.emptyResultsTable(), ...
+                ColumnNames = ["Signal", "IEC Path", "Status", "Rule", ...
+                               "IsOverride", "RuleIndex"], ...
+                HiddenColumnNames = ["IsOverride", "RuleIndex"], ...
                 SelectionType = "row", ...
-                Multiselect = "on");
+                Multiselect = "on", ...
+                ShowRowFilter = true);
             obj.ResultsTable.Layout.Row = 1;
             obj.ResultsTable.Layout.Column = 1;
 
@@ -113,37 +122,39 @@ classdef MappingView < handle
             uibutton(btns, Text = "Save Rules", ...
                 ButtonPushedFcn = @(~,~) obj.onSaveRules());
 
-            obj.RulesTable = uitable(grp, ...
-                ColumnName = {'Kind', 'Pattern / Path', ...
-                              'Template / Target', 'Notes'}, ...
-                Data = cell(0, 4), ...
+            obj.RulesTable = gwidgets.Table( ...
+                Parent = grp, ...
+                Data = obj.emptyRulesTable(), ...
+                ColumnNames = ["Kind", "Pattern / Path", ...
+                               "Template / Target", "Notes"], ...
                 SelectionType = "row", ...
-                DoubleClickedFcn = @(~,~) obj.onEditRule(), ...
-                SelectionChangedFcn = @(~,~) obj.applyResultStyles());
+                ShowRowFilter = false, ...
+                CellDoubleClickCallback = @(~,~) obj.onEditRule(), ...
+                CellSelectionCallback = @(~,~) obj.applyResultStyles());
             obj.RulesTable.Layout.Row = 2;
             obj.RulesTable.Layout.Column = 1;
         end
 
         function refresh(obj)
-            results = obj.Session.Results;
-            obj.ResultsTable.Data = obj.resultsToCell(results);
-            obj.RulesTable.Data = obj.rulesToCell(obj.Session.Rules.Rules);
+            obj.ResultsTable.Data = obj.resultsToTable(obj.Session.Results);
+            obj.RulesTable.Data = obj.rulesToTable(obj.Session.Rules.Rules);
             obj.applyResultStyles();
         end
 
         function applyResultStyles(obj)
-            removeStyle(obj.ResultsTable);
+            obj.ResultsTable.removeStyle();
             results = obj.Session.Results;
             if isempty(results)
                 obj.ResultsTable.Selection = [];
                 return
             end
 
-            overrideStyle = uistyle(BackgroundColor = [1, 0.93, 0.70]);
-            overrideRows = find(arrayfun(@(r) r.IsOverride, results));
-            for k = 1:numel(overrideRows)
-                addStyle(obj.ResultsTable, overrideStyle, "row", overrideRows(k));
-            end
+            % Function-based target so the highlight follows the row
+            % through any sort/filter the user applies in the widget.
+            overrideStyle = matlab.ui.style.Style( ...
+                BackgroundColor = [1, 0.93, 0.70]);
+            obj.ResultsTable.addStyle(overrideStyle, "row", ...
+                @(t) find(t.Data.IsOverride));
 
             sel = obj.RulesTable.Selection;
             if isempty(sel)
@@ -294,38 +305,76 @@ classdef MappingView < handle
     end
 
     methods (Static, Access = private)
-        function data = resultsToCell(results)
-            n = numel(results);
-            data = cell(n, 4);
-            for k = 1:n
-                r = results(k);
-                data{k, 1} = char(r.Signal.InstancePath);
-                data{k, 2} = char(r.IecPath.Path);
-                data{k, 3} = char(string(r.Status));
-                if r.RuleIndex > 0
-                    data{k, 4} = sprintf('[%d] %s', r.RuleIndex, char(r.RuleSource));
-                else
-                    data{k, 4} = char(r.RuleSource);
-                end
-            end
+        function tbl = emptyResultsTable()
+            Signal = strings(0,1);
+            IecPath = strings(0,1);
+            Status = strings(0,1);
+            Rule = strings(0,1);
+            IsOverride = false(0,1);
+            RuleIndex = zeros(0,1);
+            tbl = table(Signal, IecPath, Status, Rule, IsOverride, RuleIndex);
         end
 
-        function data = rulesToCell(rules)
+        function tbl = emptyRulesTable()
+            Kind = strings(0,1);
+            Pattern = strings(0,1);
+            Template = strings(0,1);
+            Notes = strings(0,1);
+            tbl = table(Kind, Pattern, Template, Notes);
+        end
+
+        function tbl = resultsToTable(results)
+            n = numel(results);
+            if n == 0
+                tbl = eLumina.gds.app.MappingView.emptyResultsTable();
+                return
+            end
+            Signal = strings(n,1);
+            IecPath = strings(n,1);
+            Status = strings(n,1);
+            Rule = strings(n,1);
+            IsOverride = false(n,1);
+            RuleIndex = zeros(n,1);
+            for k = 1:n
+                r = results(k);
+                Signal(k) = r.Signal.InstancePath;
+                IecPath(k) = r.IecPath.Path;
+                Status(k) = string(r.Status);
+                if r.RuleIndex > 0
+                    Rule(k) = "[" + r.RuleIndex + "] " + r.RuleSource;
+                else
+                    Rule(k) = r.RuleSource;
+                end
+                IsOverride(k) = r.IsOverride;
+                RuleIndex(k) = r.RuleIndex;
+            end
+            tbl = table(Signal, IecPath, Status, Rule, IsOverride, RuleIndex);
+        end
+
+        function tbl = rulesToTable(rules)
             n = numel(rules);
-            data = cell(n, 4);
+            if n == 0
+                tbl = eLumina.gds.app.MappingView.emptyRulesTable();
+                return
+            end
+            Kind = strings(n,1);
+            Pattern = strings(n,1);
+            Template = strings(n,1);
+            Notes = strings(n,1);
             for k = 1:n
                 r = rules(k);
                 if isa(r, "eLumina.gds.rules.RegexRule")
-                    data{k, 1} = 'regex';
-                    data{k, 2} = char(r.Pattern);
-                    data{k, 3} = char(r.Template);
+                    Kind(k) = "regex";
+                    Pattern(k) = r.Pattern;
+                    Template(k) = r.Template;
                 else
-                    data{k, 1} = 'explicit';
-                    data{k, 2} = char(r.Path);
-                    data{k, 3} = char(r.Target);
+                    Kind(k) = "explicit";
+                    Pattern(k) = r.Path;
+                    Template(k) = r.Target;
                 end
-                data{k, 4} = char(r.Notes);
+                Notes(k) = r.Notes;
             end
+            tbl = table(Kind, Pattern, Template, Notes);
         end
     end
 end
