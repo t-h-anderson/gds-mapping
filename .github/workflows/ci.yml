@@ -18,14 +18,22 @@ jobs:
           cache: true
 
       - name: Run tests
-        uses: matlab-actions/run-tests@v2
+        uses: matlab-actions/run-command@v2
         with:
-          source-folder: |
-            src
-            test
-          select-by-folder: test
-          test-results-junit: test-results/results.xml
-          code-coverage-cobertura: test-results/coverage.xml
+          command: |
+            addpath('src'); addpath('test');
+            mkdir('test-results');
+            import matlab.unittest.plugins.XMLPlugin;
+            import matlab.unittest.plugins.CodeCoveragePlugin;
+            import matlab.unittest.plugins.codecoverage.CoberturaFormat;
+            suite  = testsuite('test', 'IncludeSubfolders', true);
+            runner = matlab.unittest.TestRunner.withTextOutput;
+            runner.addPlugin(XMLPlugin.producingJUnitFormat('test-results/results.xml'));
+            runner.addPlugin(CodeCoveragePlugin.forFolder('src', ...
+                'IncludingSubfolders', true, ...
+                'Producing', CoberturaFormat('test-results/coverage.xml')));
+            results = runner.run(suite);
+            assertSuccess(results);
         env:
           MLM_LICENSE_TOKEN: ${{ secrets.MATLAB_LICENCE }}
 
