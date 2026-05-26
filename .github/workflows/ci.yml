@@ -11,6 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Start virtual display
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y xvfb
+          Xvfb :99 -screen 0 1280x1024x24 &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v2
         with:
