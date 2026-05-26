@@ -7,12 +7,12 @@ classdef SimulinkSignal
     end
 
     methods
-        function obj = SimulinkSignal(nvp)
+        function obj = SimulinkSignal(instancePath, nvp)
             arguments
-                nvp.InstancePath (1,1) string
-                nvp.PortType     (1,1) string = ""
+                instancePath (1,1) string
+                nvp.PortType (1,1) string = ""
             end
-            obj.InstancePath = nvp.InstancePath;
+            obj.InstancePath = instancePath;
             obj.PortType = nvp.PortType;
         end
     end
