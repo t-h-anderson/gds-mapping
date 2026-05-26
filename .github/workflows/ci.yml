@@ -25,7 +25,7 @@ jobs:
           test-results-junit: test-results/results.xml
           code-coverage-cobertura: test-results/coverage.xml
         env:
-          MLM_LICENSE_TOKEN: ${{ secrets.MATHWORKS_LICENSE_TOKEN }}
+          MLM_LICENSE_TOKEN: ${{ secrets.MATLAB_LICENCE }}
 
       - name: Upload test results
         if: always()
