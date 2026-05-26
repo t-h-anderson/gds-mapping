@@ -56,6 +56,14 @@ classdef MappingSession < handle
             obj.recompute();
         end
 
+        function loadModel(obj, modelPath)
+            arguments
+                obj
+                modelPath (1,1) string {mustBeFile}
+            end
+            obj.setSignals(eLumina.gds.extract.extractSignals(modelPath));
+        end
+
         function addRule(obj, rule)
             arguments
                 obj

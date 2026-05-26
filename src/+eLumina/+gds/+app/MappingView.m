@@ -56,9 +56,11 @@ classdef MappingView < handle
         end
 
         function buildTopBar(obj, parent, row)
-            top = uigridlayout(parent, [1 4], ...
-                ColumnWidth = {120, 110, 150, "1x"});
+            top = uigridlayout(parent, [1 5], ...
+                ColumnWidth = {130, 120, 110, 150, "1x"});
             top.Layout.Row = row; top.Layout.Column = 1;
+            uibutton(top, Text = "Load Model…", ...
+                ButtonPushedFcn = @(~,~) obj.onLoadModel());
             uibutton(top, Text = "Load Rules…", ...
                 ButtonPushedFcn = @(~,~) obj.onLoadRules());
             uibutton(top, Text = "Save Rules", ...
@@ -114,6 +116,14 @@ classdef MappingView < handle
         function refresh(obj)
             obj.ResultsTable.Data = obj.resultsToCell(obj.Session.Results);
             obj.RulesTable.Data   = obj.rulesToCell(obj.Session.Rules.Rules);
+        end
+
+        function onLoadModel(obj)
+            [file, folder] = uigetfile( ...
+                {'*.slx;*.mdl', 'Simulink models (*.slx, *.mdl)'}, ...
+                'Load Simulink model');
+            if isequal(file, 0); return; end
+            obj.Session.loadModel(string(fullfile(folder, file)));
         end
 
         function onLoadRules(obj)
