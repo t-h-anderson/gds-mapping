@@ -66,7 +66,6 @@ classdef tRuleSet < matlab.unittest.TestCase
                 Pattern = "^a$", Template = "second"));
             sig = eLumina.gds.extract.SimulinkSignal("a");
             [~, path] = rs.applyTo(sig);
-            % First-added wins because it sits at index 1
             testCase.verifyEqual(path.Path, "first");
             testCase.verifyEqual(numel(rs.Rules), 2);
         end
@@ -79,6 +78,46 @@ classdef tRuleSet < matlab.unittest.TestCase
             sig = eLumina.gds.extract.SimulinkSignal("a");
             [~, path] = rs.applyTo(sig);
             testCase.verifyEqual(path.Path, "two");
+        end
+
+        function tMoveUpSwapsWithPrevious(testCase)
+            r1 = eLumina.gds.rules.RegexRule(Pattern = "^a$", Template = "one");
+            r2 = eLumina.gds.rules.RegexRule(Pattern = "^a$", Template = "two");
+            rs = eLumina.gds.rules.RuleSet([r1, r2]);
+            rs.moveUp(2);
+            sig = eLumina.gds.extract.SimulinkSignal("a");
+            [~, path] = rs.applyTo(sig);
+            testCase.verifyEqual(path.Path, "two");
+        end
+
+        function tMoveDownSwapsWithNext(testCase)
+            r1 = eLumina.gds.rules.RegexRule(Pattern = "^a$", Template = "one");
+            r2 = eLumina.gds.rules.RegexRule(Pattern = "^a$", Template = "two");
+            rs = eLumina.gds.rules.RuleSet([r1, r2]);
+            rs.moveDown(1);
+            sig = eLumina.gds.extract.SimulinkSignal("a");
+            [~, path] = rs.applyTo(sig);
+            testCase.verifyEqual(path.Path, "two");
+        end
+
+        function tMoveUpAtTopIsNoop(testCase)
+            r1 = eLumina.gds.rules.RegexRule(Pattern = "^a$", Template = "one");
+            r2 = eLumina.gds.rules.RegexRule(Pattern = "^a$", Template = "two");
+            rs = eLumina.gds.rules.RuleSet([r1, r2]);
+            rs.moveUp(1);
+            sig = eLumina.gds.extract.SimulinkSignal("a");
+            [~, path] = rs.applyTo(sig);
+            testCase.verifyEqual(path.Path, "one");
+        end
+
+        function tMoveDownAtBottomIsNoop(testCase)
+            r1 = eLumina.gds.rules.RegexRule(Pattern = "^a$", Template = "one");
+            r2 = eLumina.gds.rules.RegexRule(Pattern = "^a$", Template = "two");
+            rs = eLumina.gds.rules.RuleSet([r1, r2]);
+            rs.moveDown(2);
+            sig = eLumina.gds.extract.SimulinkSignal("a");
+            [~, path] = rs.applyTo(sig);
+            testCase.verifyEqual(path.Path, "one");
         end
     end
 end

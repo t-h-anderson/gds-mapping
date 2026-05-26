@@ -82,6 +82,24 @@ classdef MappingSession < handle
             obj.recompute();
         end
 
+        function moveRuleUp(obj, idx)
+            arguments
+                obj
+                idx (1,1) double {mustBePositive, mustBeInteger}
+            end
+            obj.Rules.moveUp(idx);
+            obj.recompute();
+        end
+
+        function moveRuleDown(obj, idx)
+            arguments
+                obj
+                idx (1,1) double {mustBePositive, mustBeInteger}
+            end
+            obj.Rules.moveDown(idx);
+            obj.recompute();
+        end
+
         function [matched, iecPath, source] = testSignal(obj, pathStr)
             %TESTSIGNAL Try the current rules against a hypothetical path.
             %   Stateless: does not touch Signals or Results.

@@ -94,8 +94,8 @@ classdef MappingView < handle
                 RowHeight = {40, "1x"}, ColumnWidth = {"1x"});
             grp.Layout.Row = row; grp.Layout.Column = 1;
 
-            btns = uigridlayout(grp, [1 4], ...
-                ColumnWidth = {140, 140, 110, "1x"});
+            btns = uigridlayout(grp, [1 6], ...
+                ColumnWidth = {140, 140, 130, 60, 60, "1x"});
             btns.Layout.Row = 1; btns.Layout.Column = 1;
             uibutton(btns, Text = "Add Regex Rule", ...
                 ButtonPushedFcn = @(~,~) obj.onAddRegex());
@@ -103,6 +103,10 @@ classdef MappingView < handle
                 ButtonPushedFcn = @(~,~) obj.onAddExplicit());
             uibutton(btns, Text = "Remove Selected", ...
                 ButtonPushedFcn = @(~,~) obj.onRemoveRule());
+            uibutton(btns, Text = "↑ Up", ...
+                ButtonPushedFcn = @(~,~) obj.onMoveUp());
+            uibutton(btns, Text = "↓ Down", ...
+                ButtonPushedFcn = @(~,~) obj.onMoveDown());
 
             obj.RulesTable = uitable(grp, ...
                 ColumnName = {'Kind', 'Pattern / Path', ...
@@ -193,6 +197,24 @@ classdef MappingView < handle
             sel = obj.RulesTable.Selection;
             if isempty(sel); return; end
             obj.Session.removeRule(sel(1));
+        end
+
+        function onMoveUp(obj)
+            sel = obj.RulesTable.Selection;
+            if isempty(sel); return; end
+            idx = sel(1);
+            if idx <= 1; return; end
+            obj.Session.moveRuleUp(idx);
+            obj.RulesTable.Selection = idx - 1;
+        end
+
+        function onMoveDown(obj)
+            sel = obj.RulesTable.Selection;
+            if isempty(sel); return; end
+            idx = sel(1);
+            if idx >= numel(obj.Session.Rules.Rules); return; end
+            obj.Session.moveRuleDown(idx);
+            obj.RulesTable.Selection = idx + 1;
         end
     end
 

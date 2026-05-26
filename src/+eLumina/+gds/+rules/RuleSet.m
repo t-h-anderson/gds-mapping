@@ -32,6 +32,28 @@ classdef RuleSet < handle
             obj.Rules(idx) = [];
         end
 
+        function moveUp(obj, idx)
+            arguments
+                obj
+                idx (1,1) double {mustBePositive, mustBeInteger}
+            end
+            if idx <= 1 || idx > numel(obj.Rules)
+                return
+            end
+            obj.Rules([idx-1, idx]) = obj.Rules([idx, idx-1]);
+        end
+
+        function moveDown(obj, idx)
+            arguments
+                obj
+                idx (1,1) double {mustBePositive, mustBeInteger}
+            end
+            if idx < 1 || idx >= numel(obj.Rules)
+                return
+            end
+            obj.Rules([idx, idx+1]) = obj.Rules([idx+1, idx]);
+        end
+
         function [matched, path, rule] = applyTo(obj, signal)
             arguments
                 obj
