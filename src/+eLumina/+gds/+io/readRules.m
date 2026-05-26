@@ -24,7 +24,7 @@ function ruleSet = readRules(csvPath)
 
     tbl = readtable(csvPath, opts);
     if ismember("Notes", string(tbl.Properties.VariableNames))
-        tbl.Notes = fillmissing(tbl.Notes, "");
+        tbl.Notes = fillmissing(tbl.Notes, "constant", "");
     else
         tbl.Notes = repmat("", height(tbl), 1);
     end
