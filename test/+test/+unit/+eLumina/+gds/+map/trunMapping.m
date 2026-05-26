@@ -50,5 +50,22 @@ classdef trunMapping < matlab.unittest.TestCase
             results = eLumina.gds.map.runMapping(sigs, rs);
             testCase.verifyEqual(results.RuleSource, "regex: ^a$");
         end
+
+        function tFlagsOverrideWhenLowerRuleAlsoMatches(testCase)
+            exp = eLumina.gds.rules.ExplicitRule( ...
+                Path = "ref2/in1", Target = "override");
+            rgx = eLumina.gds.rules.RegexRule( ...
+                Pattern = "^ref(\d+)/in(\d+)$", Template = "shadowed");
+            rs = eLumina.gds.rules.RuleSet([exp, rgx]);
+            sigs = [ ...
+                eLumina.gds.extract.SimulinkSignal("ref2/in1"), ...
+                eLumina.gds.extract.SimulinkSignal("ref3/in1")];
+            results = eLumina.gds.map.runMapping(sigs, rs);
+            % ref2/in1 hits the explicit and the regex would also match
+            testCase.verifyTrue(results(1).IsOverride);
+            testCase.verifyEqual(results(1).IecPath.Path, "override");
+            % ref3/in1 only hits the regex
+            testCase.verifyFalse(results(2).IsOverride);
+        end
     end
 end

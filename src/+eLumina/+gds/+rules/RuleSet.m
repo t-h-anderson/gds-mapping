@@ -63,21 +63,29 @@ classdef RuleSet < handle
             obj.Rules(idx) = rule;
         end
 
-        function [matched, path, rule] = applyTo(obj, signal)
+        function [matched, path, rule, isOverride] = applyTo(obj, signal)
             arguments
                 obj
                 signal (1,1) eLumina.gds.extract.SimulinkSignal
             end
-            for k = 1:numel(obj.Rules)
-                [matched, path] = obj.Rules(k).applyTo(signal);
-                if matched
-                    rule = obj.Rules(k);
-                    return
-                end
-            end
             matched = false;
             path = eLumina.gds.iec.IecPath("");
             rule = eLumina.gds.rules.MappingRule.empty(1,0);
+            isOverride = false;
+            for k = 1:numel(obj.Rules)
+                [m, p] = obj.Rules(k).applyTo(signal);
+                if ~m
+                    continue
+                end
+                if ~matched
+                    matched = true;
+                    path = p;
+                    rule = obj.Rules(k);
+                else
+                    isOverride = true;
+                    return
+                end
+            end
         end
     end
 end

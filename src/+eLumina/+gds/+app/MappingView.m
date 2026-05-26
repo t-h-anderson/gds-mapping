@@ -121,8 +121,22 @@ classdef MappingView < handle
         end
 
         function refresh(obj)
-            obj.ResultsTable.Data = obj.resultsToCell(obj.Session.Results);
-            obj.RulesTable.Data   = obj.rulesToCell(obj.Session.Rules.Rules);
+            results = obj.Session.Results;
+            obj.ResultsTable.Data = obj.resultsToCell(results);
+            obj.RulesTable.Data = obj.rulesToCell(obj.Session.Rules.Rules);
+            obj.highlightOverrides(results);
+        end
+
+        function highlightOverrides(obj, results)
+            removeStyle(obj.ResultsTable);
+            if isempty(results)
+                return
+            end
+            overrideStyle = uistyle(BackgroundColor = [1, 0.93, 0.70]);
+            overrideRows = find(arrayfun(@(r) r.IsOverride, results));
+            for k = 1:numel(overrideRows)
+                addStyle(obj.ResultsTable, overrideStyle, "row", overrideRows(k));
+            end
         end
 
         function onLoadModel(obj)

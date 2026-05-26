@@ -119,5 +119,36 @@ classdef tRuleSet < matlab.unittest.TestCase
             [~, path] = rs.applyTo(sig);
             testCase.verifyEqual(path.Path, "one");
         end
+
+        function tIsOverrideWhenLaterRuleAlsoMatches(testCase)
+            exp = eLumina.gds.rules.ExplicitRule( ...
+                Path = "ref2/in1", Target = "explicit_override");
+            rgx = eLumina.gds.rules.RegexRule( ...
+                Pattern = "^ref(\d+)/in(\d+)$", Template = "regex_${1}_${2}");
+            rs = eLumina.gds.rules.RuleSet([exp, rgx]);
+            sig = eLumina.gds.extract.SimulinkSignal("ref2/in1");
+            [~, ~, ~, isOverride] = rs.applyTo(sig);
+            testCase.verifyTrue(isOverride);
+        end
+
+        function tNotOverrideWhenOnlyOneRuleMatches(testCase)
+            exp = eLumina.gds.rules.ExplicitRule( ...
+                Path = "ref2/in1", Target = "only_match");
+            rgx = eLumina.gds.rules.RegexRule( ...
+                Pattern = "^doesNotMatch$", Template = "x");
+            rs = eLumina.gds.rules.RuleSet([exp, rgx]);
+            sig = eLumina.gds.extract.SimulinkSignal("ref2/in1");
+            [~, ~, ~, isOverride] = rs.applyTo(sig);
+            testCase.verifyFalse(isOverride);
+        end
+
+        function tNotOverrideOnNoMatch(testCase)
+            rgx = eLumina.gds.rules.RegexRule( ...
+                Pattern = "^x$", Template = "y");
+            rs = eLumina.gds.rules.RuleSet(rgx);
+            sig = eLumina.gds.extract.SimulinkSignal("notMatchedAtAll");
+            [~, ~, ~, isOverride] = rs.applyTo(sig);
+            testCase.verifyFalse(isOverride);
+        end
     end
 end
