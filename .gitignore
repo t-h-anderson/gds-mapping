@@ -1,0 +1,27 @@
+# MATLAB
+*.asv
+*.m~
+*.mex*
+*.autosave
+
+# Simulink
+slprj/
+*.slxc
+*.slx.bak
+*.mdl.bak
+
+# Build / packaging
+*.mltbx
+deploy/build/
+out/
+
+# Test artefacts
+test-results/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/

@@ -1,0 +1,5 @@
+{
+  "modelPath":  "",
+  "rulesPath":  "gdsmap.rules.csv",
+  "outputPath": "out/esca-mapping.csv"
+}
