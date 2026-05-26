@@ -1,0 +1,8 @@
+Kind,Priority,SimulinkPattern,IecPathTemplate,Notes
+# Demo rules for test/models/DemoPlant.slx.
+# Exercises override + per-instance regex + IEC-flavoured templates.
+explicit,100,ctrl2/In1,esca_special_override,one-off override to show explicit beats regex
+regex,10,^ctrl(\d+)/In(\d+)$,esca_ctrl${1}_in${2},
+regex,10,^ctrl(\d+)/Out(\d+)$,esca_ctrl${1}_out${2},
+regex,10,^In(\d+)$,MMXU1.PhV.in${1}.cVal.mag.f,
+regex,10,^Out(\d+)$,MMXU1.PhV.out${1}.cVal.mag.f,
