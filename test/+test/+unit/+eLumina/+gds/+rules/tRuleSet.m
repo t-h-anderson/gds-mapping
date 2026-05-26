@@ -5,10 +5,10 @@ classdef tRuleSet < matlab.unittest.TestCase
         function tEmptyRuleSetReturnsUnmatched(testCase)
             rs = eLumina.gds.rules.RuleSet();
             sig = eLumina.gds.extract.SimulinkSignal("ref1/in1");
-            [matched, path, rule] = rs.applyTo(sig);
+            [matched, path, ruleIdx] = rs.applyTo(sig);
             testCase.verifyFalse(matched);
             testCase.verifyEqual(path.Path, "");
-            testCase.verifyTrue(isempty(rule));
+            testCase.verifyEqual(ruleIdx, 0);
         end
 
         function tSingleRuleFires(testCase)
@@ -16,10 +16,11 @@ classdef tRuleSet < matlab.unittest.TestCase
                 Pattern = "^ref(\d+)/in(\d+)$", Template = "esca_${1}in${2}");
             rs = eLumina.gds.rules.RuleSet(r);
             sig = eLumina.gds.extract.SimulinkSignal("ref1/in1");
-            [matched, path, rule] = rs.applyTo(sig);
+            [matched, path, ruleIdx] = rs.applyTo(sig);
             testCase.verifyTrue(matched);
             testCase.verifyEqual(path.Path, "esca_1in1");
-            testCase.verifyTrue(isa(rule, "eLumina.gds.rules.RegexRule"));
+            testCase.verifyEqual(ruleIdx, 1);
+            testCase.verifyTrue(isa(rs.Rules(ruleIdx), "eLumina.gds.rules.RegexRule"));
         end
 
         function tFirstRuleWinsOverLater(testCase)
@@ -29,8 +30,9 @@ classdef tRuleSet < matlab.unittest.TestCase
                 Pattern = "^ref(\d+)/in(\d+)$", Template = "second_${1}_${2}");
             rs = eLumina.gds.rules.RuleSet([first, second]);
             sig = eLumina.gds.extract.SimulinkSignal("ref3/in4");
-            [~, path] = rs.applyTo(sig);
+            [~, path, ruleIdx] = rs.applyTo(sig);
             testCase.verifyEqual(path.Path, "first_3_4");
+            testCase.verifyEqual(ruleIdx, 1);
         end
 
         function tExplicitAboveRegexBeats(testCase)
@@ -40,22 +42,23 @@ classdef tRuleSet < matlab.unittest.TestCase
                 Pattern = "^ref(\d+)/in(\d+)$", Template = "regex_${1}_${2}");
             rs = eLumina.gds.rules.RuleSet([exp, rgx]);
             sig = eLumina.gds.extract.SimulinkSignal("ref2/in1");
-            [~, path, rule] = rs.applyTo(sig);
+            [~, path, ruleIdx] = rs.applyTo(sig);
             testCase.verifyEqual(path.Path, "explicit_override");
-            testCase.verifyTrue(isa(rule, "eLumina.gds.rules.ExplicitRule"));
+            testCase.verifyEqual(ruleIdx, 1);
+            testCase.verifyTrue(isa(rs.Rules(ruleIdx), "eLumina.gds.rules.ExplicitRule"));
         end
 
         function tRegexAboveExplicitBeats(testCase)
-            % Now that priority is positional, an explicit rule below
-            % a regex that already matches is shadowed.
+            % Position is priority — an explicit below a matching regex is shadowed.
             rgx = eLumina.gds.rules.RegexRule( ...
                 Pattern = "^ref(\d+)/in(\d+)$", Template = "regex_${1}_${2}");
             exp = eLumina.gds.rules.ExplicitRule( ...
                 Path = "ref2/in1", Target = "shadowed");
             rs = eLumina.gds.rules.RuleSet([rgx, exp]);
             sig = eLumina.gds.extract.SimulinkSignal("ref2/in1");
-            [~, path] = rs.applyTo(sig);
+            [~, path, ruleIdx] = rs.applyTo(sig);
             testCase.verifyEqual(path.Path, "regex_2_1");
+            testCase.verifyEqual(ruleIdx, 1);
         end
 
         function tAddAppendsToEnd(testCase)
@@ -149,6 +152,17 @@ classdef tRuleSet < matlab.unittest.TestCase
             sig = eLumina.gds.extract.SimulinkSignal("notMatchedAtAll");
             [~, ~, ~, isOverride] = rs.applyTo(sig);
             testCase.verifyFalse(isOverride);
+        end
+
+        function tReplaceSwapsRuleAtIndex(testCase)
+            r1 = eLumina.gds.rules.RegexRule(Pattern = "^a$", Template = "one");
+            r2 = eLumina.gds.rules.RegexRule(Pattern = "^a$", Template = "two");
+            rs = eLumina.gds.rules.RuleSet([r1, r2]);
+            rs.replace(1, eLumina.gds.rules.RegexRule( ...
+                Pattern = "^a$", Template = "replaced"));
+            sig = eLumina.gds.extract.SimulinkSignal("a");
+            [~, path] = rs.applyTo(sig);
+            testCase.verifyEqual(path.Path, "replaced");
         end
     end
 end

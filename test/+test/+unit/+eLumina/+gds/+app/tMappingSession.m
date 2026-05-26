@@ -60,9 +60,10 @@ classdef tMappingSession < matlab.unittest.TestCase
                 Pattern = "^foo$", Template = "bar"));
             s.setSignals(eLumina.gds.extract.SimulinkSignal("foo"));
 
-            [matched, iecPath, source] = s.testSignal("foo");
+            [matched, iecPath, ruleIdx, source] = s.testSignal("foo");
             testCase.verifyTrue(matched);
             testCase.verifyEqual(iecPath, "bar");
+            testCase.verifyEqual(ruleIdx, 1);
             testCase.verifyEqual(source, "regex: ^foo$");
 
             % Hypothetical lookup didn't grow Signals or Results

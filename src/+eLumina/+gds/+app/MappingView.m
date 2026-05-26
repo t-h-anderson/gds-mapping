@@ -85,8 +85,8 @@ classdef MappingView < handle
             uilabel(test, Text = "Test signal path:");
             obj.TestInput = uieditfield(test, "text", ...
                 ValueChangedFcn = @(src,~) obj.onTestSignalChanged(src.Value));
-            obj.TestMatchLabel = uilabel(test, Text = "Match: —");
-            obj.TestPathLabel  = uilabel(test, Text = "Path: —");
+            obj.TestMatchLabel = uilabel(test, Text = "Rule: —");
+            obj.TestPathLabel = uilabel(test, Text = "Path: —");
         end
 
         function buildRulesEditor(obj, parent, row)
@@ -115,7 +115,8 @@ classdef MappingView < handle
                               'Template / Target', 'Notes'}, ...
                 Data = cell(0, 4), ...
                 SelectionType = "row", ...
-                DoubleClickedFcn = @(~,~) obj.onEditRule());
+                DoubleClickedFcn = @(~,~) obj.onEditRule(), ...
+                SelectionChangedFcn = @(~,~) obj.applyResultStyles());
             obj.RulesTable.Layout.Row = 2;
             obj.RulesTable.Layout.Column = 1;
         end
@@ -124,18 +125,31 @@ classdef MappingView < handle
             results = obj.Session.Results;
             obj.ResultsTable.Data = obj.resultsToCell(results);
             obj.RulesTable.Data = obj.rulesToCell(obj.Session.Rules.Rules);
-            obj.highlightOverrides(results);
+            obj.applyResultStyles();
         end
 
-        function highlightOverrides(obj, results)
+        function applyResultStyles(obj)
             removeStyle(obj.ResultsTable);
+            results = obj.Session.Results;
             if isempty(results)
                 return
             end
+
             overrideStyle = uistyle(BackgroundColor = [1, 0.93, 0.70]);
             overrideRows = find(arrayfun(@(r) r.IsOverride, results));
             for k = 1:numel(overrideRows)
                 addStyle(obj.ResultsTable, overrideStyle, "row", overrideRows(k));
+            end
+
+            sel = obj.RulesTable.Selection;
+            if isempty(sel)
+                return
+            end
+            ruleIdx = sel(1);
+            selectionStyle = uistyle(BackgroundColor = [0.82, 0.93, 1.0]);
+            matchingRows = find(arrayfun(@(r) r.RuleIndex == ruleIdx, results));
+            for k = 1:numel(matchingRows)
+                addStyle(obj.ResultsTable, selectionStyle, "row", matchingRows(k));
             end
         end
 
@@ -174,17 +188,17 @@ classdef MappingView < handle
 
         function onTestSignalChanged(obj, val)
             if val == ""
-                obj.TestMatchLabel.Text = "Match: —";
-                obj.TestPathLabel.Text  = "Path: —";
+                obj.TestMatchLabel.Text = "Rule: —";
+                obj.TestPathLabel.Text = "Path: —";
                 return
             end
-            [matched, iecPath, source] = obj.Session.testSignal(string(val));
+            [matched, iecPath, ruleIdx, source] = obj.Session.testSignal(string(val));
             if matched
-                obj.TestMatchLabel.Text = "Match: " + source;
-                obj.TestPathLabel.Text  = "Path: "  + iecPath;
+                obj.TestMatchLabel.Text = "Rule: [" + ruleIdx + "] " + source;
+                obj.TestPathLabel.Text = "Path: " + iecPath;
             else
-                obj.TestMatchLabel.Text = "Match: (none)";
-                obj.TestPathLabel.Text  = "Path: —";
+                obj.TestMatchLabel.Text = "Rule: (none)";
+                obj.TestPathLabel.Text = "Path: —";
             end
         end
 
@@ -273,7 +287,11 @@ classdef MappingView < handle
                 data{k, 1} = char(r.Signal.InstancePath);
                 data{k, 2} = char(r.IecPath.Path);
                 data{k, 3} = char(string(r.Status));
-                data{k, 4} = char(r.RuleSource);
+                if r.RuleIndex > 0
+                    data{k, 4} = sprintf('[%d] %s', r.RuleIndex, char(r.RuleSource));
+                else
+                    data{k, 4} = char(r.RuleSource);
+                end
             end
         end
 

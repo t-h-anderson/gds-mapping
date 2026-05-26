@@ -63,14 +63,17 @@ classdef RuleSet < handle
             obj.Rules(idx) = rule;
         end
 
-        function [matched, path, rule, isOverride] = applyTo(obj, signal)
+        function [matched, path, ruleIdx, isOverride] = applyTo(obj, signal)
+            %APPLYTO First-match-wins lookup. Returns the index of the
+            %   firing rule (0 if none) and a flag indicating whether
+            %   any later rule would also have matched.
             arguments
                 obj
                 signal (1,1) eLumina.gds.extract.SimulinkSignal
             end
             matched = false;
             path = eLumina.gds.iec.IecPath("");
-            rule = eLumina.gds.rules.MappingRule.empty(1,0);
+            ruleIdx = 0;
             isOverride = false;
             for k = 1:numel(obj.Rules)
                 [m, p] = obj.Rules(k).applyTo(signal);
@@ -80,7 +83,7 @@ classdef RuleSet < handle
                 if ~matched
                     matched = true;
                     path = p;
-                    rule = obj.Rules(k);
+                    ruleIdx = k;
                 else
                     isOverride = true;
                     return

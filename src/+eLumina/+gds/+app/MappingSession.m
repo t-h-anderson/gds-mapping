@@ -110,7 +110,7 @@ classdef MappingSession < handle
             obj.recompute();
         end
 
-        function [matched, iecPath, source] = testSignal(obj, pathStr)
+        function [matched, iecPath, ruleIdx, source] = testSignal(obj, pathStr)
             %TESTSIGNAL Try the current rules against a hypothetical path.
             %   Stateless: does not touch Signals or Results.
             arguments
@@ -118,10 +118,10 @@ classdef MappingSession < handle
                 pathStr (1,1) string
             end
             sig = eLumina.gds.extract.SimulinkSignal(pathStr);
-            [matched, path, rule] = obj.Rules.applyTo(sig);
+            [matched, path, ruleIdx] = obj.Rules.applyTo(sig);
             iecPath = path.Path;
             if matched
-                source = rule.describe();
+                source = obj.Rules.Rules(ruleIdx).describe();
             else
                 source = "";
             end

@@ -61,11 +61,22 @@ classdef trunMapping < matlab.unittest.TestCase
                 eLumina.gds.extract.SimulinkSignal("ref2/in1"), ...
                 eLumina.gds.extract.SimulinkSignal("ref3/in1")];
             results = eLumina.gds.map.runMapping(sigs, rs);
-            % ref2/in1 hits the explicit and the regex would also match
+            % ref2/in1 hits the explicit (rule 1) and the regex (rule 2) shadows it
             testCase.verifyTrue(results(1).IsOverride);
             testCase.verifyEqual(results(1).IecPath.Path, "override");
+            testCase.verifyEqual(results(1).RuleIndex, 1);
             % ref3/in1 only hits the regex
             testCase.verifyFalse(results(2).IsOverride);
+            testCase.verifyEqual(results(2).RuleIndex, 2);
+        end
+
+        function tUnmappedHasRuleIndexZero(testCase)
+            r = eLumina.gds.rules.RegexRule(Pattern = "^x$", Template = "y");
+            rs = eLumina.gds.rules.RuleSet(r);
+            sigs = eLumina.gds.extract.SimulinkSignal("nope");
+            results = eLumina.gds.map.runMapping(sigs, rs);
+            testCase.verifyEqual(results.RuleIndex, 0);
+            testCase.verifyEqual(results.Status, eLumina.gds.map.ResultStatus.Unmapped);
         end
     end
 end
