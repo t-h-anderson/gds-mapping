@@ -23,6 +23,7 @@ jobs:
         with:
           release: R2025a
           cache: true
+          products: Simulink
 
       - name: Run tests
         uses: matlab-actions/run-command@v2
