@@ -13,6 +13,7 @@ classdef MappingSession < handle
         Rules (1,1) eLumina.gds.rules.RuleSet
         Signals (1,:) eLumina.gds.extract.SimulinkSignal = eLumina.gds.extract.SimulinkSignal.empty(1,0)
         Results (1,:) eLumina.gds.map.MappingResult = eLumina.gds.map.MappingResult.empty(1,0)
+        ModelPath (1,1) string = ""
         RulesPath (1,1) string = ""
     end
 
@@ -61,6 +62,7 @@ classdef MappingSession < handle
                 obj
                 modelPath (1,1) string {mustBeFile}
             end
+            obj.ModelPath = modelPath;
             obj.setSignals(eLumina.gds.extract.extractSignals(modelPath));
         end
 

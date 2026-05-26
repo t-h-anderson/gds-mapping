@@ -8,6 +8,7 @@ classdef tMappingSession < matlab.unittest.TestCase
             testCase.verifyEmpty(s.Results);
             testCase.verifyEmpty(s.Rules.Rules);
             testCase.verifyEqual(s.RulesPath, "");
+            testCase.verifyEqual(s.ModelPath, "");
         end
 
         function tLoadRulesPopulatesAndRecomputes(testCase)

@@ -56,15 +56,14 @@ classdef MappingView < handle
         end
 
         function buildTopBar(obj, parent, row)
-            top = uigridlayout(parent, [1 5], ...
-                ColumnWidth = {130, 120, 110, 150, "1x"});
+            % Translation pipeline: model in -> rules in -> results out.
+            top = uigridlayout(parent, [1 4], ...
+                ColumnWidth = {130, 120, 150, "1x"});
             top.Layout.Row = row; top.Layout.Column = 1;
             uibutton(top, Text = "Load Model…", ...
                 ButtonPushedFcn = @(~,~) obj.onLoadModel());
             uibutton(top, Text = "Load Rules…", ...
                 ButtonPushedFcn = @(~,~) obj.onLoadRules());
-            uibutton(top, Text = "Save Rules", ...
-                ButtonPushedFcn = @(~,~) obj.onSaveRules());
             uibutton(top, Text = "Export Results…", ...
                 ButtonPushedFcn = @(~,~) obj.onExportResults());
         end
@@ -94,8 +93,8 @@ classdef MappingView < handle
                 RowHeight = {40, "1x"}, ColumnWidth = {"1x"});
             grp.Layout.Row = row; grp.Layout.Column = 1;
 
-            btns = uigridlayout(grp, [1 7], ...
-                ColumnWidth = {140, 140, 130, 130, 60, 60, "1x"});
+            btns = uigridlayout(grp, [1 8], ...
+                ColumnWidth = {140, 140, 130, 130, 60, 60, 110, "1x"});
             btns.Layout.Row = 1; btns.Layout.Column = 1;
             uibutton(btns, Text = "Add Regex Rule", ...
                 ButtonPushedFcn = @(~,~) obj.onAddRegex());
@@ -109,6 +108,8 @@ classdef MappingView < handle
                 ButtonPushedFcn = @(~,~) obj.onMoveUp());
             uibutton(btns, Text = "↓ Down", ...
                 ButtonPushedFcn = @(~,~) obj.onMoveDown());
+            uibutton(btns, Text = "Save Rules", ...
+                ButtonPushedFcn = @(~,~) obj.onSaveRules());
 
             obj.RulesTable = uitable(grp, ...
                 ColumnName = {'Kind', 'Pattern / Path', ...
@@ -180,10 +181,23 @@ classdef MappingView < handle
         end
 
         function onExportResults(obj)
+            defaultName = obj.defaultExportName();
             [file, folder] = uiputfile({'*.csv', 'CSV files (*.csv)'}, ...
-                'Export results CSV');
+                'Export results CSV', defaultName);
             if isequal(file, 0); return; end
             obj.Session.exportResults(string(fullfile(folder, file)));
+        end
+
+        function name = defaultExportName(obj)
+            if obj.Session.ModelPath ~= ""
+                [~, base] = fileparts(obj.Session.ModelPath);
+                name = string(base) + "_mapping.csv";
+            elseif obj.Session.RulesPath ~= ""
+                [~, base] = fileparts(obj.Session.RulesPath);
+                name = string(base) + "_mapping.csv";
+            else
+                name = "mapping.csv";
+            end
         end
 
         function onTestSignalChanged(obj, val)
