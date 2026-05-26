@@ -9,7 +9,7 @@ function results = runFromModel(modelPath, rulesCsv, outputCsv)
 
     arguments
         modelPath (1,1) string {mustBeFile}
-        rulesCsv  (1,1) string {mustBeFile}
+        rulesCsv (1,1) string {mustBeFile}
         outputCsv (1,1) string
     end
 

@@ -20,9 +20,10 @@ classdef tExplicitRule < matlab.unittest.TestCase
             testCase.verifyEqual(path.Path, "");
         end
 
-        function tDefaultsPriorityTo100(testCase)
-            rule = eLumina.gds.rules.ExplicitRule(Path = "a", Target = "b");
-            testCase.verifyEqual(rule.Priority, 100);
+        function tDescribeIncludesKindAndPath(testCase)
+            rule = eLumina.gds.rules.ExplicitRule( ...
+                Path = "ref2/in1", Target = "esca_x");
+            testCase.verifyEqual(rule.describe(), "explicit: ref2/in1");
         end
     end
 end

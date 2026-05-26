@@ -9,7 +9,7 @@ function view = launch(nvp)
     arguments
         nvp.ModelPath (1,1) string = ""
         nvp.RulesPath (1,1) string = ""
-        nvp.Signals   (1,:) string = string.empty(1, 0)
+        nvp.Signals (1,:) string = string.empty(1,0)
     end
 
     session = eLumina.gds.app.MappingSession();

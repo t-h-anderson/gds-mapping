@@ -13,8 +13,8 @@ classdef tMappingSession < matlab.unittest.TestCase
         function tLoadRulesPopulatesAndRecomputes(testCase)
             testCase.applyFixture(matlab.unittest.fixtures.WorkingFolderFixture);
             writelines([ ...
-                "Kind,Priority,SimulinkPattern,IecPathTemplate,Notes"; ...
-                "regex,10,^a$,b,"], "rules.csv");
+                "Kind,SimulinkPattern,IecPathTemplate,Notes"; ...
+                "regex,^a$,b,"], "rules.csv");
 
             s = eLumina.gds.app.MappingSession();
             s.setSignals(eLumina.gds.extract.SimulinkSignal("a"));
@@ -63,7 +63,7 @@ classdef tMappingSession < matlab.unittest.TestCase
             [matched, iecPath, source] = s.testSignal("foo");
             testCase.verifyTrue(matched);
             testCase.verifyEqual(iecPath, "bar");
-            testCase.verifyEqual(source, "regex#10 ^foo$");
+            testCase.verifyEqual(source, "regex: ^foo$");
 
             % Hypothetical lookup didn't grow Signals or Results
             testCase.verifyEqual(numel(s.Signals), 1);

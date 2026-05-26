@@ -2,25 +2,25 @@ classdef twriteRules < matlab.unittest.TestCase
     %TWRITERULES Tests for eLumina.gds.io.writeRules (and round-trip).
 
     methods (Test)
-        function tRoundTripPreservesRules(testCase)
+        function tRoundTripPreservesOrderAndContent(testCase)
             testCase.applyFixture(matlab.unittest.fixtures.WorkingFolderFixture);
 
             rs = eLumina.gds.rules.RuleSet([ ...
                 eLumina.gds.rules.ExplicitRule( ...
                     Path = "ref2/in1", Target = "esca_special", ...
-                    Priority = 100, Notes = "one-off"), ...
+                    Notes = "one-off"), ...
                 eLumina.gds.rules.RegexRule( ...
                     Pattern = "^ref(\d+)/in(\d+)$", ...
                     Template = "esca_${1}in${2}", ...
-                    Priority = 10, Notes = "default")]);
+                    Notes = "default")]);
 
             eLumina.gds.io.writeRules(rs, "out.csv");
             rs2 = eLumina.gds.io.readRules("out.csv");
 
             testCase.verifyEqual(numel(rs2.Rules), 2);
-            testCase.verifyEqual(rs2.Rules(1).Priority, 100);
+            testCase.verifyTrue(isa(rs2.Rules(1), "eLumina.gds.rules.ExplicitRule"));
             testCase.verifyEqual(rs2.Rules(1).Notes, "one-off");
-            testCase.verifyEqual(rs2.Rules(2).Priority, 10);
+            testCase.verifyTrue(isa(rs2.Rules(2), "eLumina.gds.rules.RegexRule"));
             testCase.verifyEqual(rs2.Rules(2).Notes, "default");
         end
 

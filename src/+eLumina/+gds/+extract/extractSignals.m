@@ -16,7 +16,7 @@ function signals = extractSignals(modelPath)
     end
 
     [folder, modelName] = fileparts(modelPath);
-    folder    = string(folder);
+    folder = string(folder);
     modelName = string(modelName);
 
     if folder ~= "" && ~ismember(char(folder), strsplit(path, pathsep))
@@ -28,23 +28,23 @@ function signals = extractSignals(modelPath)
         load_system(char(modelPath));
     end
 
-    chunks = cell(1, 0);
-    chunks{end+1} = collectPorts(modelName, "Inport",  "");
+    chunks = cell(1,0);
+    chunks{end+1} = collectPorts(modelName, "Inport", "");
     chunks{end+1} = collectPorts(modelName, "Outport", "");
 
     modelRefs = find_system(char(modelName), ...
         'SearchDepth', 1, 'BlockType', 'ModelReference');
     for k = 1:numel(modelRefs)
         refBlockName = string(get_param(modelRefs{k}, 'Name'));
-        refModelRaw  = string(get_param(modelRefs{k}, 'ModelName'));
+        refModelRaw = string(get_param(modelRefs{k}, 'ModelName'));
         [~, refBase] = fileparts(refModelRaw);
-        refModel     = string(refBase);
+        refModel = string(refBase);
 
         if ~bdIsLoaded(char(refModel))
             load_system(char(refModel));
         end
 
-        chunks{end+1} = collectPorts(refModel, "Inport",  refBlockName); %#ok<AGROW>
+        chunks{end+1} = collectPorts(refModel, "Inport", refBlockName); %#ok<AGROW>
         chunks{end+1} = collectPorts(refModel, "Outport", refBlockName); %#ok<AGROW>
     end
 
@@ -54,14 +54,14 @@ end
 function ports = collectPorts(systemName, blockType, prefix)
     arguments
         systemName (1,1) string
-        blockType  (1,1) string {mustBeMember(blockType, ["Inport", "Outport"])}
-        prefix     (1,1) string
+        blockType (1,1) string {mustBeMember(blockType, ["Inport", "Outport"])}
+        prefix (1,1) string
     end
     blocks = find_system(char(systemName), ...
         'SearchDepth', 1, 'BlockType', char(blockType));
     n = numel(blocks);
     if n == 0
-        ports = eLumina.gds.extract.SimulinkSignal.empty(1, 0);
+        ports = eLumina.gds.extract.SimulinkSignal.empty(1,0);
         return
     end
     cells = cell(1, n);

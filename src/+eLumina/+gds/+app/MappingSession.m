@@ -10,9 +10,9 @@ classdef MappingSession < handle
     end
 
     properties (SetAccess = protected)
-        Rules     (1,1) eLumina.gds.rules.RuleSet
-        Signals   (1,:) eLumina.gds.extract.SimulinkSignal = eLumina.gds.extract.SimulinkSignal.empty(1, 0)
-        Results   (1,:) eLumina.gds.map.MappingResult       = eLumina.gds.map.MappingResult.empty(1, 0)
+        Rules (1,1) eLumina.gds.rules.RuleSet
+        Signals (1,:) eLumina.gds.extract.SimulinkSignal = eLumina.gds.extract.SimulinkSignal.empty(1,0)
+        Results (1,:) eLumina.gds.map.MappingResult = eLumina.gds.map.MappingResult.empty(1,0)
         RulesPath (1,1) string = ""
     end
 

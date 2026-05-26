@@ -3,7 +3,7 @@ classdef SimulinkSignal
 
     properties (SetAccess = protected)
         InstancePath (1,1) string
-        PortType     (1,1) string = ""
+        PortType (1,1) string = ""
     end
 
     methods

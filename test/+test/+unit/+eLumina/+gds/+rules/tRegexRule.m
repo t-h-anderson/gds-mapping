@@ -4,7 +4,7 @@ classdef tRegexRule < matlab.unittest.TestCase
     methods (Test)
         function tMatchesAndSubstitutesCaptures(testCase)
             rule = eLumina.gds.rules.RegexRule( ...
-                Pattern  = "^ref(\d+)/in(\d+)$", ...
+                Pattern = "^ref(\d+)/in(\d+)$", ...
                 Template = "esca_${1}in${2}");
             sig = eLumina.gds.extract.SimulinkSignal("ref2/in7");
             [matched, path] = rule.applyTo(sig);
@@ -14,7 +14,7 @@ classdef tRegexRule < matlab.unittest.TestCase
 
         function tNoMatchReturnsEmptyPath(testCase)
             rule = eLumina.gds.rules.RegexRule( ...
-                Pattern  = "^ref(\d+)/in(\d+)$", ...
+                Pattern = "^ref(\d+)/in(\d+)$", ...
                 Template = "esca_${1}in${2}");
             sig = eLumina.gds.extract.SimulinkSignal("status/breaker1");
             [matched, path] = rule.applyTo(sig);
@@ -24,7 +24,7 @@ classdef tRegexRule < matlab.unittest.TestCase
 
         function tNoCaptureGroupsPassesTemplateThrough(testCase)
             rule = eLumina.gds.rules.RegexRule( ...
-                Pattern  = "^anything$", ...
+                Pattern = "^anything$", ...
                 Template = "fixed_target");
             sig = eLumina.gds.extract.SimulinkSignal("anything");
             [matched, path] = rule.applyTo(sig);
@@ -32,15 +32,10 @@ classdef tRegexRule < matlab.unittest.TestCase
             testCase.verifyEqual(path.Path, "fixed_target");
         end
 
-        function tDefaultsPriorityTo10(testCase)
-            rule = eLumina.gds.rules.RegexRule(Pattern = "x", Template = "y");
-            testCase.verifyEqual(rule.Priority, 10);
-        end
-
-        function tDescribeIncludesPriorityAndPattern(testCase)
+        function tDescribeIncludesKindAndPattern(testCase)
             rule = eLumina.gds.rules.RegexRule( ...
-                Pattern = "^foo$", Template = "bar", Priority = 25);
-            testCase.verifyEqual(rule.describe(), "regex#25 ^foo$");
+                Pattern = "^foo$", Template = "bar");
+            testCase.verifyEqual(rule.describe(), "regex: ^foo$");
         end
     end
 end

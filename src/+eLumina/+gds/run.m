@@ -10,8 +10,8 @@ function results = run(signalPaths, rulesCsv, outputCsv)
 
     arguments
         signalPaths (1,:) string
-        rulesCsv    (1,1) string {mustBeFile}
-        outputCsv   (1,1) string
+        rulesCsv (1,1) string {mustBeFile}
+        outputCsv (1,1) string
     end
 
     signals = arrayfun( ...

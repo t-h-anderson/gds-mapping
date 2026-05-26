@@ -168,6 +168,19 @@ Rules:
 - No spaces immediately inside `(...)`, `[...]`, `{...}`.
 - Space after `,` and `;` except at end of line.
 - One blank line between local functions, between method declarations, and between separate method/property blocks in a `classdef`. No blank lines at the start or end of a file.
+- **No alignment padding.** One space between identifier, size, type, and default. Aligning columns with extra spaces creates noisy diffs every time a longer name is added.
+  ```matlab
+  % Yes
+  Signals (1,:) eLumina.gds.extract.SimulinkSignal = eLumina.gds.extract.SimulinkSignal.empty(1,0)
+  Results (1,:) eLumina.gds.map.MappingResult = eLumina.gds.map.MappingResult.empty(1,0)
+  RulesPath (1,1) string = ""
+
+  % No — padded for column alignment
+  Signals   (1,:) eLumina.gds.extract.SimulinkSignal = ...
+  Results   (1,:) eLumina.gds.map.MappingResult       = ...
+  RulesPath (1,1) string = ""
+  ```
+- **Size tuples are tight**: `(1,1)`, `(1,:)`, `(:,:)`, `empty(1,0)` — no spaces after the comma inside size specifiers. (The general "space after comma" rule applies to function argument lists and array literals, not to size tuples.)
 
 ## 13. Things we don't do
 

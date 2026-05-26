@@ -13,15 +13,15 @@ function writeResults(results, csvPath)
 
     n = numel(results);
     simulinkPath = strings(n, 1);
-    iecPath      = strings(n, 1);
-    status       = strings(n, 1);
-    ruleSource   = strings(n, 1);
+    iecPath = strings(n, 1);
+    status = strings(n, 1);
+    ruleSource = strings(n, 1);
 
     for k = 1:n
         simulinkPath(k) = results(k).Signal.InstancePath;
-        iecPath(k)      = results(k).IecPath.Path;
-        status(k)       = string(results(k).Status);
-        ruleSource(k)   = results(k).RuleSource;
+        iecPath(k) = results(k).IecPath.Path;
+        status(k) = string(results(k).Status);
+        ruleSource(k) = results(k).RuleSource;
     end
 
     tbl = table(simulinkPath, iecPath, status, ruleSource, ...

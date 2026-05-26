@@ -1,6 +1,8 @@
 classdef RuleSet < handle
-    %RULESET Ordered collection of MappingRules. Higher priority wins;
-    %   ExplicitRule beats RegexRule at equal priority.
+    %RULESET Ordered collection of MappingRules. First match wins.
+    %
+    %   Position in the list is the priority — top of the list (index 1)
+    %   wins over later entries. The user controls ordering explicitly.
 
     properties (SetAccess = protected)
         Rules (1,:) eLumina.gds.rules.MappingRule = eLumina.gds.rules.MappingRule.empty(1,0)
@@ -11,7 +13,7 @@ classdef RuleSet < handle
             arguments
                 rules (1,:) eLumina.gds.rules.MappingRule = eLumina.gds.rules.MappingRule.empty(1,0)
             end
-            obj.Rules = eLumina.gds.rules.RuleSet.sortByPrecedence(rules);
+            obj.Rules = rules;
         end
 
         function add(obj, rule)
@@ -19,7 +21,7 @@ classdef RuleSet < handle
                 obj
                 rule (1,1) eLumina.gds.rules.MappingRule
             end
-            obj.Rules = eLumina.gds.rules.RuleSet.sortByPrecedence([obj.Rules, rule]);
+            obj.Rules = [obj.Rules, rule];
         end
 
         function remove(obj, idx)
@@ -45,21 +47,6 @@ classdef RuleSet < handle
             matched = false;
             path = eLumina.gds.iec.IecPath("");
             rule = eLumina.gds.rules.MappingRule.empty(1,0);
-        end
-    end
-
-    methods (Static, Access = private)
-        function sorted = sortByPrecedence(rules)
-            if isempty(rules)
-                sorted = rules;
-                return
-            end
-            priorities = arrayfun(@(r) r.Priority, rules);
-            isExplicit = arrayfun(@(r) isa(r, "eLumina.gds.rules.ExplicitRule"), rules);
-            % Sort ascending on negated keys ⇒ descending priority, then
-            % explicit (1) before regex (0) at equal priority.
-            [~, idx] = sortrows([-priorities(:), -double(isExplicit(:))]);
-            sorted = rules(idx);
         end
     end
 end

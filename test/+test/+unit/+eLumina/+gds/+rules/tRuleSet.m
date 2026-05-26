@@ -1,9 +1,9 @@
 classdef tRuleSet < matlab.unittest.TestCase
-    %TRULESET Tests for eLumina.gds.rules.RuleSet precedence and dispatch.
+    %TRULESET Tests for eLumina.gds.rules.RuleSet — position-based priority.
 
     methods (Test)
         function tEmptyRuleSetReturnsUnmatched(testCase)
-            rs  = eLumina.gds.rules.RuleSet();
+            rs = eLumina.gds.rules.RuleSet();
             sig = eLumina.gds.extract.SimulinkSignal("ref1/in1");
             [matched, path, rule] = rs.applyTo(sig);
             testCase.verifyFalse(matched);
@@ -14,7 +14,7 @@ classdef tRuleSet < matlab.unittest.TestCase
         function tSingleRuleFires(testCase)
             r = eLumina.gds.rules.RegexRule( ...
                 Pattern = "^ref(\d+)/in(\d+)$", Template = "esca_${1}in${2}");
-            rs  = eLumina.gds.rules.RuleSet(r);
+            rs = eLumina.gds.rules.RuleSet(r);
             sig = eLumina.gds.extract.SimulinkSignal("ref1/in1");
             [matched, path, rule] = rs.applyTo(sig);
             testCase.verifyTrue(matched);
@@ -22,55 +22,63 @@ classdef tRuleSet < matlab.unittest.TestCase
             testCase.verifyTrue(isa(rule, "eLumina.gds.rules.RegexRule"));
         end
 
-        function tHigherPriorityWins(testCase)
-            low  = eLumina.gds.rules.RegexRule( ...
-                Pattern = "^ref(\d+)/in(\d+)$", Template = "lo_${1}_${2}", ...
-                Priority = 10);
-            high = eLumina.gds.rules.RegexRule( ...
-                Pattern = "^ref(\d+)/in(\d+)$", Template = "hi_${1}_${2}", ...
-                Priority = 20);
-            rs  = eLumina.gds.rules.RuleSet([low, high]);
+        function tFirstRuleWinsOverLater(testCase)
+            first = eLumina.gds.rules.RegexRule( ...
+                Pattern = "^ref(\d+)/in(\d+)$", Template = "first_${1}_${2}");
+            second = eLumina.gds.rules.RegexRule( ...
+                Pattern = "^ref(\d+)/in(\d+)$", Template = "second_${1}_${2}");
+            rs = eLumina.gds.rules.RuleSet([first, second]);
             sig = eLumina.gds.extract.SimulinkSignal("ref3/in4");
             [~, path] = rs.applyTo(sig);
-            testCase.verifyEqual(path.Path, "hi_3_4");
+            testCase.verifyEqual(path.Path, "first_3_4");
         end
 
-        function tExplicitBeatsRegexAtEqualPriority(testCase)
-            rgx = eLumina.gds.rules.RegexRule( ...
-                Pattern = "^ref(\d+)/in(\d+)$", Template = "regex_${1}_${2}", ...
-                Priority = 50);
+        function tExplicitAboveRegexBeats(testCase)
             exp = eLumina.gds.rules.ExplicitRule( ...
-                Path = "ref2/in1", Target = "explicit_override", ...
-                Priority = 50);
-            rs  = eLumina.gds.rules.RuleSet([rgx, exp]);
+                Path = "ref2/in1", Target = "explicit_override");
+            rgx = eLumina.gds.rules.RegexRule( ...
+                Pattern = "^ref(\d+)/in(\d+)$", Template = "regex_${1}_${2}");
+            rs = eLumina.gds.rules.RuleSet([exp, rgx]);
             sig = eLumina.gds.extract.SimulinkSignal("ref2/in1");
             [~, path, rule] = rs.applyTo(sig);
             testCase.verifyEqual(path.Path, "explicit_override");
             testCase.verifyTrue(isa(rule, "eLumina.gds.rules.ExplicitRule"));
         end
 
-        function tRegexBeatsLowerPriorityExplicit(testCase)
-            % Higher priority wins even when the loser is explicit.
-            exp = eLumina.gds.rules.ExplicitRule( ...
-                Path = "ref2/in1", Target = "low_pri_override", Priority = 1);
+        function tRegexAboveExplicitBeats(testCase)
+            % Now that priority is positional, an explicit rule below
+            % a regex that already matches is shadowed.
             rgx = eLumina.gds.rules.RegexRule( ...
-                Pattern = "^ref(\d+)/in(\d+)$", Template = "regex_${1}_${2}", ...
-                Priority = 10);
-            rs  = eLumina.gds.rules.RuleSet([exp, rgx]);
+                Pattern = "^ref(\d+)/in(\d+)$", Template = "regex_${1}_${2}");
+            exp = eLumina.gds.rules.ExplicitRule( ...
+                Path = "ref2/in1", Target = "shadowed");
+            rs = eLumina.gds.rules.RuleSet([rgx, exp]);
             sig = eLumina.gds.extract.SimulinkSignal("ref2/in1");
             [~, path] = rs.applyTo(sig);
             testCase.verifyEqual(path.Path, "regex_2_1");
         end
 
-        function tAddInsertsAndReorders(testCase)
+        function tAddAppendsToEnd(testCase)
             rs = eLumina.gds.rules.RuleSet();
             rs.add(eLumina.gds.rules.RegexRule( ...
-                Pattern = "^a$", Template = "lo", Priority = 5));
+                Pattern = "^a$", Template = "first"));
             rs.add(eLumina.gds.rules.RegexRule( ...
-                Pattern = "^a$", Template = "hi", Priority = 20));
+                Pattern = "^a$", Template = "second"));
             sig = eLumina.gds.extract.SimulinkSignal("a");
             [~, path] = rs.applyTo(sig);
-            testCase.verifyEqual(path.Path, "hi");
+            % First-added wins because it sits at index 1
+            testCase.verifyEqual(path.Path, "first");
+            testCase.verifyEqual(numel(rs.Rules), 2);
+        end
+
+        function tRemoveDropsRule(testCase)
+            r1 = eLumina.gds.rules.RegexRule(Pattern = "^a$", Template = "one");
+            r2 = eLumina.gds.rules.RegexRule(Pattern = "^a$", Template = "two");
+            rs = eLumina.gds.rules.RuleSet([r1, r2]);
+            rs.remove(1);
+            sig = eLumina.gds.extract.SimulinkSignal("a");
+            [~, path] = rs.applyTo(sig);
+            testCase.verifyEqual(path.Path, "two");
         end
     end
 end

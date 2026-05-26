@@ -2,22 +2,20 @@ classdef RegexRule < eLumina.gds.rules.MappingRule
     %REGEXRULE Maps signals whose path matches a regex, substituting ${N} captures.
 
     properties (SetAccess = protected)
-        Pattern  (1,1) string
+        Pattern (1,1) string
         Template (1,1) string
     end
 
     methods
         function obj = RegexRule(nvp)
             arguments
-                nvp.Pattern  (1,1) string
-                nvp.Template (1,1) string
-                nvp.Priority (1,1) double = 10
-                nvp.Notes    (1,1) string = ""
+                nvp.Pattern (1,1) string = ""
+                nvp.Template (1,1) string = ""
+                nvp.Notes (1,1) string = ""
             end
-            obj.Pattern  = nvp.Pattern;
+            obj.Pattern = nvp.Pattern;
             obj.Template = nvp.Template;
-            obj.Priority = nvp.Priority;
-            obj.Notes    = nvp.Notes;
+            obj.Notes = nvp.Notes;
         end
 
         function [matched, path] = applyTo(obj, signal)
@@ -45,7 +43,7 @@ classdef RegexRule < eLumina.gds.rules.MappingRule
         end
 
         function s = describe(obj)
-            s = sprintf("regex#%g %s", obj.Priority, obj.Pattern);
+            s = "regex: " + obj.Pattern;
         end
     end
 end

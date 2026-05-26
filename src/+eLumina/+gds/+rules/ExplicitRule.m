@@ -2,22 +2,20 @@ classdef ExplicitRule < eLumina.gds.rules.MappingRule
     %EXPLICITRULE Maps one literal Simulink path to one literal IEC path.
 
     properties (SetAccess = protected)
-        Path   (1,1) string
+        Path (1,1) string
         Target (1,1) string
     end
 
     methods
         function obj = ExplicitRule(nvp)
             arguments
-                nvp.Path     (1,1) string
-                nvp.Target   (1,1) string
-                nvp.Priority (1,1) double = 100
-                nvp.Notes    (1,1) string = ""
+                nvp.Path (1,1) string = ""
+                nvp.Target (1,1) string = ""
+                nvp.Notes (1,1) string = ""
             end
-            obj.Path     = nvp.Path;
-            obj.Target   = nvp.Target;
-            obj.Priority = nvp.Priority;
-            obj.Notes    = nvp.Notes;
+            obj.Path = nvp.Path;
+            obj.Target = nvp.Target;
+            obj.Notes = nvp.Notes;
         end
 
         function [matched, path] = applyTo(obj, signal)
@@ -35,7 +33,7 @@ classdef ExplicitRule < eLumina.gds.rules.MappingRule
         end
 
         function s = describe(obj)
-            s = sprintf("explicit#%g %s", obj.Priority, obj.Path);
+            s = "explicit: " + obj.Path;
         end
     end
 end

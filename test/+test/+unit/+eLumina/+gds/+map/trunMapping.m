@@ -4,7 +4,7 @@ classdef trunMapping < matlab.unittest.TestCase
     methods (Test)
         function tEmptySignalsReturnsEmptyResults(testCase)
             rs = eLumina.gds.rules.RuleSet();
-            sigs = eLumina.gds.extract.SimulinkSignal.empty(1, 0);
+            sigs = eLumina.gds.extract.SimulinkSignal.empty(1,0);
             results = eLumina.gds.map.runMapping(sigs, rs);
             testCase.verifyEmpty(results);
         end
@@ -44,11 +44,11 @@ classdef trunMapping < matlab.unittest.TestCase
 
         function tRuleSourceCarriesDescription(testCase)
             r = eLumina.gds.rules.RegexRule( ...
-                Pattern = "^a$", Template = "b", Priority = 25);
+                Pattern = "^a$", Template = "b");
             rs = eLumina.gds.rules.RuleSet(r);
             sigs = eLumina.gds.extract.SimulinkSignal("a");
             results = eLumina.gds.map.runMapping(sigs, rs);
-            testCase.verifyEqual(results.RuleSource, "regex#25 ^a$");
+            testCase.verifyEqual(results.RuleSource, "regex: ^a$");
         end
     end
 end

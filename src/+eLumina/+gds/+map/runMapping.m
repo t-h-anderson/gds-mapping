@@ -8,7 +8,7 @@ function results = runMapping(signals, ruleSet)
 
     n = numel(signals);
     if n == 0
-        results = eLumina.gds.map.MappingResult.empty(1, 0);
+        results = eLumina.gds.map.MappingResult.empty(1,0);
         return
     end
 
@@ -17,9 +17,9 @@ function results = runMapping(signals, ruleSet)
         [matched, path, rule] = ruleSet.applyTo(signals(k));
         if matched
             results(k) = eLumina.gds.map.MappingResult(signals(k), ...
-                IecPath    = path, ...
+                IecPath = path, ...
                 RuleSource = rule.describe(), ...
-                Status     = eLumina.gds.map.ResultStatus.Matched);
+                Status = eLumina.gds.map.ResultStatus.Matched);
         else
             results(k) = eLumina.gds.map.MappingResult(signals(k), ...
                 Status = eLumina.gds.map.ResultStatus.Unmapped);
