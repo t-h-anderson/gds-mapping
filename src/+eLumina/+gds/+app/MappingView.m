@@ -57,7 +57,7 @@ classdef MappingView < handle
 
         function buildTopBar(obj, parent, row)
             top = uigridlayout(parent, [1 4], ...
-                ColumnWidth = {120, 110, 150, "1x"});
+                ColumnWidth = {"fit", "fit", "fit", "1x"});
             top.Layout.Row = row; top.Layout.Column = 1;
             uibutton(top, Text = "Load Rules…", ...
                 ButtonPushedFcn = @(~,~) obj.onLoadRules());
@@ -93,7 +93,7 @@ classdef MappingView < handle
             grp.Layout.Row = row; grp.Layout.Column = 1;
 
             btns = uigridlayout(grp, [1 4], ...
-                ColumnWidth = {140, 140, 110, "1x"});
+                ColumnWidth = {"fit", "fit", "fit", "1x"});
             btns.Layout.Row = 1; btns.Layout.Column = 1;
             uibutton(btns, Text = "Add Regex Rule", ...
                 ButtonPushedFcn = @(~,~) obj.onAddRegex());
