@@ -1,6 +1,6 @@
 classdef tExtractSignals < matlab.unittest.TestCase
     %TEXTRACTSIGNALS Tests for eLumina.gds.extract.extractSignals against
-    %   the DemoPlant fixture.
+    %   the DemoPlant fixture (controller bus-leaves).
 
     properties (Constant)
         ModelPath = fullfile(test.util.fixturesPath(), "DemoPlant.slx")
@@ -18,16 +18,18 @@ classdef tExtractSignals < matlab.unittest.TestCase
     end
 
     methods (Test)
-        function tEmitsRootAndModelRefPorts(testCase)
+        function tEmitsBusLeafSignalsPerModelRefPort(testCase)
             signals = eLumina.gds.extract.extractSignals( ...
                 tExtractSignals.ModelPath);
 
-            paths = arrayfun(@(s) s.InstancePath, signals);
+            paths = arrayfun(@(s) s.fullPath(), signals);
             expected = [...
-                "In1", "In2", "In3", "In4", ...
-                "Out1", "Out2", ...
-                "ctrl1/In1", "ctrl1/In2", "ctrl1/Out1", ...
-                "ctrl2/In1", "ctrl2/In2", "ctrl2/Out1"];
+                "ctrl1/In1.a", "ctrl1/In1.a1", "ctrl1/In1.a2", ...
+                "ctrl1/In2.p", "ctrl1/In2.p1", "ctrl1/In2.p2", ...
+                "ctrl1/Out1.a", "ctrl1/Out1.a1", "ctrl1/Out1.a2", ...
+                "ctrl2/In1.a", "ctrl2/In1.a1", "ctrl2/In1.a2", ...
+                "ctrl2/In2.p", "ctrl2/In2.p1", "ctrl2/In2.p2", ...
+                "ctrl2/Out1.a", "ctrl2/Out1.a1", "ctrl2/Out1.a2"];
 
             testCase.verifyEqual(sort(paths), sort(expected));
         end
@@ -37,17 +39,27 @@ classdef tExtractSignals < matlab.unittest.TestCase
                 tExtractSignals.ModelPath);
 
             byPath = dictionary( ...
-                arrayfun(@(s) s.InstancePath, signals), ...
+                arrayfun(@(s) s.fullPath(), signals), ...
                 1:numel(signals));
 
             testCase.verifyEqual( ...
-                signals(byPath("In1")).PortType, "Inport");
+                signals(byPath("ctrl1/In1.a")).PortType, "Inport");
             testCase.verifyEqual( ...
-                signals(byPath("Out1")).PortType, "Outport");
+                signals(byPath("ctrl1/Out1.a")).PortType, "Outport");
             testCase.verifyEqual( ...
-                signals(byPath("ctrl1/In1")).PortType, "Inport");
-            testCase.verifyEqual( ...
-                signals(byPath("ctrl2/Out1")).PortType, "Outport");
+                signals(byPath("ctrl2/In2.p")).PortType, "Inport");
+        end
+
+        function tPopulatesBusField(testCase)
+            signals = eLumina.gds.extract.extractSignals( ...
+                tExtractSignals.ModelPath);
+            byPath = dictionary( ...
+                arrayfun(@(s) s.fullPath(), signals), ...
+                1:numel(signals));
+
+            sig = signals(byPath("ctrl1/In1.a1"));
+            testCase.verifyEqual(sig.InstancePath, "ctrl1/In1");
+            testCase.verifyEqual(sig.BusField, "a1");
         end
 
         function tIsIdempotentWhenModelAlreadyLoaded(testCase)

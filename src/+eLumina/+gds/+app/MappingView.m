@@ -355,7 +355,7 @@ classdef MappingView < handle
             ShadowTooltip = strings(n,1);
             for k = 1:n
                 r = results(k);
-                Signal(k) = r.Signal.InstancePath;
+                Signal(k) = r.Signal.fullPath();
                 IecPath(k) = r.IecPath.Path;
                 Status(k) = string(r.Status);
                 Rule(k) = eLumina.gds.app.MappingSession.formatRuleDisplay( ...

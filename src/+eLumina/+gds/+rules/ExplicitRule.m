@@ -23,7 +23,7 @@ classdef ExplicitRule < eLumina.gds.rules.MappingRule
                 obj
                 signal (1,1) eLumina.gds.extract.SimulinkSignal
             end
-            if signal.InstancePath == obj.Path
+            if signal.fullPath() == obj.Path
                 matched = true;
                 path = eLumina.gds.iec.IecPath(obj.Target);
             else

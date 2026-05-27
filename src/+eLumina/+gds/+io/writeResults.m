@@ -18,7 +18,7 @@ function writeResults(results, csvPath)
     ruleSource = strings(n, 1);
 
     for k = 1:n
-        simulinkPath(k) = results(k).Signal.InstancePath;
+        simulinkPath(k) = results(k).Signal.fullPath();
         iecPath(k) = results(k).IecPath.Path;
         status(k) = string(results(k).Status);
         ruleSource(k) = results(k).RuleSource;

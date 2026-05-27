@@ -20,8 +20,8 @@ classdef tMappingSession < matlab.unittest.TestCase
             s.loadModel(modelPath);
 
             testCase.verifyEqual(s.ModelPath, string(modelPath));
-            testCase.verifyEqual(numel(s.Signals), 12);
-            testCase.verifyEqual(numel(s.Results), 12);
+            testCase.verifyEqual(numel(s.Signals), 18);
+            testCase.verifyEqual(numel(s.Results), 18);
         end
     end
 end

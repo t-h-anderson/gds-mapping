@@ -23,7 +23,7 @@ classdef RegexRule < eLumina.gds.rules.MappingRule
                 obj
                 signal (1,1) eLumina.gds.extract.SimulinkSignal
             end
-            [startIdx, tokens] = regexp(signal.InstancePath, obj.Pattern, ...
+            [startIdx, tokens] = regexp(signal.fullPath(), obj.Pattern, ...
                 'start', 'tokens', 'once');
             if isempty(startIdx)
                 matched = false;
