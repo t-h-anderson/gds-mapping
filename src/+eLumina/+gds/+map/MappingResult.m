@@ -4,6 +4,7 @@ classdef MappingResult
     properties (SetAccess = protected)
         Signal (1,1) eLumina.gds.extract.SimulinkSignal
         IecPath (1,1) eLumina.gds.iec.IecPath
+        PlantPath (1,1) string = ""
         RuleSource (1,1) string = ""
         RuleIndex (1,1) double = 0
         Status (1,1) eLumina.gds.map.ResultStatus = eLumina.gds.map.ResultStatus.Unmapped
@@ -16,6 +17,7 @@ classdef MappingResult
             arguments
                 signal (1,1) eLumina.gds.extract.SimulinkSignal
                 nvp.IecPath (1,1) eLumina.gds.iec.IecPath = eLumina.gds.iec.IecPath("")
+                nvp.PlantPath (1,1) string = ""
                 nvp.RuleSource (1,1) string = ""
                 nvp.RuleIndex (1,1) double = 0
                 nvp.Status (1,1) eLumina.gds.map.ResultStatus = eLumina.gds.map.ResultStatus.Unmapped
@@ -24,6 +26,7 @@ classdef MappingResult
             end
             obj.Signal = signal;
             obj.IecPath = nvp.IecPath;
+            obj.PlantPath = nvp.PlantPath;
             obj.RuleSource = nvp.RuleSource;
             obj.RuleIndex = nvp.RuleIndex;
             obj.Status = nvp.Status;

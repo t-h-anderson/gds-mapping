@@ -8,6 +8,7 @@ classdef tMappingResult < matlab.unittest.TestCase
             testCase.verifyEqual(r.Signal.InstancePath, "ref1/in1");
             testCase.verifyEqual(r.Status, eLumina.gds.map.ResultStatus.Unmapped);
             testCase.verifyEqual(r.IecPath.Path, "");
+            testCase.verifyEqual(r.PlantPath, "");
             testCase.verifyEqual(r.RuleSource, "");
         end
 
@@ -16,11 +17,22 @@ classdef tMappingResult < matlab.unittest.TestCase
             path = eLumina.gds.iec.IecPath("esca_1in2");
             r = eLumina.gds.map.MappingResult(sig, ...
                 IecPath = path, ...
+                PlantPath = "Plant/Out1.voltage", ...
                 RuleSource = "regex: ^ref(\d+)/in(\d+)$", ...
                 Status = eLumina.gds.map.ResultStatus.Mapped);
             testCase.verifyEqual(r.IecPath.Path, "esca_1in2");
+            testCase.verifyEqual(r.PlantPath, "Plant/Out1.voltage");
             testCase.verifyEqual(r.RuleSource, "regex: ^ref(\d+)/in(\d+)$");
             testCase.verifyEqual(r.Status, eLumina.gds.map.ResultStatus.Mapped);
+        end
+
+        function tInternalStatusCarriesNoPaths(testCase)
+            sig = eLumina.gds.extract.SimulinkSignal("ctrl1/internalState");
+            r = eLumina.gds.map.MappingResult(sig, ...
+                Status = eLumina.gds.map.ResultStatus.Internal);
+            testCase.verifyEqual(r.Status, eLumina.gds.map.ResultStatus.Internal);
+            testCase.verifyEqual(r.PlantPath, "");
+            testCase.verifyEqual(r.IecPath.Path, "");
         end
     end
 end
