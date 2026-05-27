@@ -55,17 +55,28 @@ classdef tMappingSession < matlab.unittest.TestCase
             testCase.verifyEqual(s.Results(1).IecPath.Path, "bar");
         end
 
+        function tTestSignalShowsShadowsWhenOverriding(testCase)
+            s = eLumina.gds.app.MappingSession();
+            s.addRule(eLumina.gds.rules.ExplicitRule( ...
+                Path = "foo", Target = "override"));
+            s.addRule(eLumina.gds.rules.RegexRule( ...
+                Pattern = "^foo$", Template = "shadowed"));
+
+            [~, ~, ruleDisplay] = s.testSignal("foo");
+            testCase.verifyEqual(ruleDisplay, ...
+                "[1] explicit: foo (shadows [2])");
+        end
+
         function tTestSignalDoesNotMutate(testCase)
             s = eLumina.gds.app.MappingSession();
             s.addRule(eLumina.gds.rules.RegexRule( ...
                 Pattern = "^foo$", Template = "bar"));
             s.setSignals(eLumina.gds.extract.SimulinkSignal("foo"));
 
-            [matched, iecPath, ruleIdx, source] = s.testSignal("foo");
+            [matched, iecPath, ruleDisplay] = s.testSignal("foo");
             testCase.verifyTrue(matched);
             testCase.verifyEqual(iecPath, "bar");
-            testCase.verifyEqual(ruleIdx, 1);
-            testCase.verifyEqual(source, "regex: ^foo$");
+            testCase.verifyEqual(ruleDisplay, "[1] regex: ^foo$");
 
             % Hypothetical lookup didn't grow Signals or Results
             testCase.verifyEqual(numel(s.Signals), 1);

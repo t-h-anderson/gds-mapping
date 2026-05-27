@@ -112,20 +112,24 @@ classdef MappingSession < handle
             obj.recompute();
         end
 
-        function [matched, iecPath, ruleIdx, source] = testSignal(obj, pathStr)
+        function [matched, iecPath, ruleDisplay] = testSignal(obj, pathStr)
             %TESTSIGNAL Try the current rules against a hypothetical path.
-            %   Stateless: does not touch Signals or Results.
+            %   Stateless: does not touch Signals or Results. ruleDisplay
+            %   is the pre-formatted "[N] kind: pattern (shadows [...])"
+            %   string the View shows verbatim.
             arguments
                 obj
                 pathStr (1,1) string
             end
             sig = eLumina.gds.extract.SimulinkSignal(pathStr);
-            [matched, path, ruleIdx] = obj.Rules.applyTo(sig);
+            [matched, path, ruleIdx, shadows] = obj.Rules.applyTo(sig);
             iecPath = path.Path;
             if matched
                 source = obj.Rules.Rules(ruleIdx).describe();
+                ruleDisplay = eLumina.gds.app.MappingSession.formatRuleDisplay( ...
+                    ruleIdx, source, shadows);
             else
-                source = "";
+                ruleDisplay = "";
             end
         end
 
@@ -142,6 +146,27 @@ classdef MappingSession < handle
         function recompute(obj)
             obj.Results = eLumina.gds.map.runMapping(obj.Signals, obj.Rules);
             notify(obj, "Changed");
+        end
+    end
+
+    methods (Static)
+        function s = formatRuleDisplay(ruleIdx, source, shadows)
+            %FORMATRULEDISPLAY Canonical "[N] kind: pattern (shadows [...])"
+            %   used by both the results table and the test panel so the
+            %   two stay in lockstep.
+            arguments
+                ruleIdx (1,1) double
+                source (1,1) string
+                shadows (1,:) double = zeros(1,0)
+            end
+            if ruleIdx == 0
+                s = source;
+                return
+            end
+            s = "[" + ruleIdx + "] " + source;
+            if ~isempty(shadows)
+                s = s + " (shadows [" + strjoin(string(shadows), ",") + "])";
+            end
         end
     end
 end
