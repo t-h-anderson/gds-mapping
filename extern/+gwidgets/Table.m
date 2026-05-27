@@ -1071,12 +1071,6 @@ classdef Table < gwidgets.internal.Reparentable
         end
 
         function set.OpenGroups(this, val)
-
-            idx = ismember(val, this.Groups);
-            if any(~idx)
-                error("GraphicsWidgets:Table:NonexistentGroupingVariable", "Grouping variables not found: " + strjoin(val(~idx), ", "));
-            end
-
             idx = ismember(this.Groups, val);
             this.OpenGroups_ = this.Groups(idx);
             if this.UpdateManager.doRun("OpenGroups")
