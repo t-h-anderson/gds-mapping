@@ -81,8 +81,8 @@ classdef MappingView < handle
                 Parent = mid, ...
                 Data = obj.emptyResultsTable(), ...
                 ColumnNames = ["Signal", "IEC Path", "Status", "Rule", ...
-                               "IsOverride", "RuleIndex"], ...
-                HiddenColumnNames = ["IsOverride", "RuleIndex"], ...
+                               "IsOverride", "RuleIndex", "ShadowTooltip"], ...
+                HiddenColumnNames = ["IsOverride", "RuleIndex", "ShadowTooltip"], ...
                 SelectionType = "row", ...
                 Multiselect = "on", ...
                 ShowRowFilter = true, ...
@@ -90,6 +90,13 @@ classdef MappingView < handle
                 HasChangeGroupingVariable=true);
             obj.ResultsTable.Layout.Row = 1;
             obj.ResultsTable.Layout.Column = 1;
+
+            % Hover-tooltip on override rows shows which lower rules
+            % were shadowed. Persists across data refreshes.
+            obj.ResultsTable.addTooltip( ...
+                @(~, row) row.ShadowTooltip, ...
+                "row", ...
+                @(t) find(t.Data.IsOverride));
 
             test = uigridlayout(mid, [5 1], ...
                 RowHeight = {22, 30, 22, 22, "1x"}, ColumnWidth = {"1x"});
@@ -315,7 +322,9 @@ classdef MappingView < handle
             Rule = strings(0,1);
             IsOverride = false(0,1);
             RuleIndex = zeros(0,1);
-            tbl = table(Signal, IecPath, Status, Rule, IsOverride, RuleIndex);
+            ShadowTooltip = strings(0,1);
+            tbl = table(Signal, IecPath, Status, Rule, IsOverride, ...
+                RuleIndex, ShadowTooltip);
         end
 
         function tbl = emptyRulesTable()
@@ -338,6 +347,7 @@ classdef MappingView < handle
             Rule = strings(n,1);
             IsOverride = false(n,1);
             RuleIndex = zeros(n,1);
+            ShadowTooltip = strings(n,1);
             for k = 1:n
                 r = results(k);
                 Signal(k) = r.Signal.InstancePath;
@@ -347,8 +357,13 @@ classdef MappingView < handle
                     r.RuleIndex, r.RuleSource, r.Shadows);
                 IsOverride(k) = r.IsOverride;
                 RuleIndex(k) = r.RuleIndex;
+                if ~isempty(r.Shadows)
+                    ShadowTooltip(k) = "Shadows rules [" + ...
+                        strjoin(string(r.Shadows), ", ") + "]";
+                end
             end
-            tbl = table(Signal, IecPath, Status, Rule, IsOverride, RuleIndex);
+            tbl = table(Signal, IecPath, Status, Rule, IsOverride, ...
+                RuleIndex, ShadowTooltip);
         end
 
         function tbl = rulesToTable(rules)
