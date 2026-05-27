@@ -807,22 +807,32 @@ classdef Table < gwidgets.internal.Reparentable
             %     ^ function form (1 arg): hovered cell value
             %   addTooltip(t, @(~, col) "Max: " + max(col), "column", 4)
             %     ^ function form (2 args): cell value + target-shaped
-            %       context (column -> vector, row -> 1xN table,
-            %       table -> full DisplayData, cell -> cell value)
+            %       context. The slice comes from the underlying Data
+            %       (hidden columns and filtered-out rows reachable).
+            %
+            %   Pass ContextShape to override the per-target default:
+            %     "Values" -> vector (column/row), array/cell (table),
+            %                 scalar (cell)
+            %     "Table"  -> Mx1 table (column), 1xN table (row),
+            %                 full Data (table), 1x1 table (cell)
+            %   Per-target defaults: column=Values, row=Table,
+            %   table=Table, cell=Values.
             arguments
                 this (1,1) gwidgets.Table
                 text % string scalar OR function_handle (cellValue) -> string
                 tableTarget (1,1) string {mustBeMember(tableTarget, ["table", "row", "column", "cell"])} = "table"
                 targetIndicesOrFunction (:,:) = []
                 nvp.SelectionMode (1,1) gwidgets.internal.table.SelectionMode = gwidgets.internal.table.SelectionMode.Data
+                nvp.ContextShape (1,1) string {mustBeMember(nvp.ContextShape, ["Values", "Table"])} = gwidgets.internal.table.TableTooltip.defaultContextShape(tableTarget)
             end
 
+            ttArgs = {"SelectionMode", nvp.SelectionMode, "ContextShape", nvp.ContextShape};
             if tableTarget == "table"
-                newTooltip = gwidgets.internal.table.TableTooltip(text, tableTarget, "SelectionMode", nvp.SelectionMode);
+                newTooltip = gwidgets.internal.table.TableTooltip(text, tableTarget, ttArgs{:});
             elseif isa(targetIndicesOrFunction, "function_handle")
-                newTooltip = gwidgets.internal.table.TableTooltip(text, tableTarget, "TargetFunction", targetIndicesOrFunction, "SelectionMode", nvp.SelectionMode);
+                newTooltip = gwidgets.internal.table.TableTooltip(text, tableTarget, "TargetFunction", targetIndicesOrFunction, ttArgs{:});
             elseif isnumeric(targetIndicesOrFunction)
-                newTooltip = gwidgets.internal.table.TableTooltip(text, tableTarget, "TargetIndices", targetIndicesOrFunction, "SelectionMode", nvp.SelectionMode);
+                newTooltip = gwidgets.internal.table.TableTooltip(text, tableTarget, "TargetIndices", targetIndicesOrFunction, ttArgs{:});
             else
                 error("GraphicsWidgets:Table:TooltipTarget", ...
                     "Tooltip target must be an index array or a function that takes the table object as input.");
@@ -2810,7 +2820,7 @@ classdef Table < gwidgets.internal.Reparentable
                 if resolved.matches(displayRow, displayColumn)
                     rank = find(priorities == tt.Target, 1);
                     try
-                        contextValue = this.contextForHover(tt.Target, displayRow, displayColumn);
+                        contextValue = this.contextForHover(tt.Target, tt.ContextShape, displayRow, displayColumn);
                         rendered = tt.textFor(cellValue, contextValue);
                     catch err
                         rendered = "[tooltip error: " + string(err.message) + "]";
@@ -2846,31 +2856,87 @@ classdef Table < gwidgets.internal.Reparentable
             end
         end
 
-        function ctx = contextForHover(this, target, displayRow, displayColumn)
+        function ctx = contextForHover(this, target, shape, displayRow, displayColumn)
             % Build the second argument passed to a tooltip's TextFunction.
-            % Shape depends on the tooltip's target:
-            %   "column" -> the hovered column as a vector
-            %   "row"    -> the hovered row as a 1xN table
-            %   "table"  -> the full DisplayData table
-            %   "cell"   -> the hovered cell value (same as the first arg)
-            data = this.DisplayData;
+            % Slices come from the underlying Data table (not DisplayData),
+            % so hidden columns and filtered-out rows are reachable. The
+            % shape parameter controls how the slice is shaped:
+            %   target=column, shape=Values -> M-vector
+            %   target=column, shape=Table  -> Mx1 table
+            %   target=row,    shape=Values -> 1xN vector (errors if mixed)
+            %   target=row,    shape=Table  -> 1xN table
+            %   target=table,  shape=Values -> numeric array (homogeneous)
+            %                                  or cell array (mixed)
+            %   target=table,  shape=Table  -> full Data table
+            %   target=cell,   shape=Values -> cell value (scalar)
+            %   target=cell,   shape=Table  -> 1x1 table at (row, col)
+            data = this.Data;
             switch target
                 case "column"
-                    if displayColumn >= 1 && displayColumn <= width(data)
-                        ctx = data{:, displayColumn};
-                    else
+                    dataCol = this.safeDisplayToDataIndex(displayColumn, "column");
+                    if isnan(dataCol) || dataCol < 1 || dataCol > width(data)
                         ctx = missing;
+                        return
+                    end
+                    if shape == "Values"
+                        ctx = data{:, dataCol};
+                    else
+                        ctx = data(:, dataCol);
                     end
                 case "row"
-                    if displayRow >= 1 && displayRow <= size(data, 1)
-                        ctx = data(displayRow, :);
-                    else
+                    dataRow = this.safeDisplayToDataIndex(displayRow, "row");
+                    if isnan(dataRow) || dataRow < 1 || dataRow > height(data)
                         ctx = missing;
+                        return
+                    end
+                    if shape == "Values"
+                        ctx = data{dataRow, :};
+                    else
+                        ctx = data(dataRow, :);
                     end
                 case "table"
-                    ctx = data;
-                otherwise
-                    ctx = this.cellValueForHover(displayRow, displayColumn);
+                    if shape == "Values"
+                        try
+                            ctx = table2array(data);
+                        catch
+                            ctx = table2cell(data);
+                        end
+                    else
+                        ctx = data;
+                    end
+                otherwise % "cell"
+                    if shape == "Values"
+                        ctx = this.cellValueForHover(displayRow, displayColumn);
+                    else
+                        dataRow = this.safeDisplayToDataIndex(displayRow, "row");
+                        dataCol = this.safeDisplayToDataIndex(displayColumn, "column");
+                        if ~isnan(dataRow) && ~isnan(dataCol) ...
+                                && dataRow >= 1 && dataRow <= height(data) ...
+                                && dataCol >= 1 && dataCol <= width(data)
+                            ctx = data(dataRow, dataCol);
+                        else
+                            ctx = missing;
+                        end
+                    end
+            end
+        end
+
+        function dataIdx = safeDisplayToDataIndex(this, displayIdx, type)
+            % displaySelectionToDataSelection asserts on inputs; wrap so a
+            % hover over a header row or out-of-range cell yields NaN
+            % instead of crashing the bridge callback.
+            if displayIdx < 1
+                dataIdx = NaN;
+                return
+            end
+            try
+                dataIdx = this.displaySelectionToDataSelection(displayIdx, type);
+            catch
+                dataIdx = NaN;
+                return
+            end
+            if isempty(dataIdx) || ~isscalar(dataIdx)
+                dataIdx = NaN;
             end
         end
 
