@@ -221,9 +221,9 @@ classdef MappingView < handle
                 obj.TestPathLabel.Text = "Path: —";
                 return
             end
-            [matched, iecPath, ruleIdx, source] = obj.Session.testSignal(string(val));
+            [matched, iecPath, ruleDisplay] = obj.Session.testSignal(string(val));
             if matched
-                obj.TestMatchLabel.Text = "Rule: [" + ruleIdx + "] " + source;
+                obj.TestMatchLabel.Text = "Rule: " + ruleDisplay;
                 obj.TestPathLabel.Text = "Path: " + iecPath;
             else
                 obj.TestMatchLabel.Text = "Rule: (none)";
@@ -343,11 +343,8 @@ classdef MappingView < handle
                 Signal(k) = r.Signal.InstancePath;
                 IecPath(k) = r.IecPath.Path;
                 Status(k) = string(r.Status);
-                if r.RuleIndex > 0
-                    Rule(k) = "[" + r.RuleIndex + "] " + r.RuleSource;
-                else
-                    Rule(k) = r.RuleSource;
-                end
+                Rule(k) = eLumina.gds.app.MappingSession.formatRuleDisplay( ...
+                    r.RuleIndex, r.RuleSource, r.Shadows);
                 IsOverride(k) = r.IsOverride;
                 RuleIndex(k) = r.RuleIndex;
             end

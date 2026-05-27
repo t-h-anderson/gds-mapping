@@ -123,35 +123,47 @@ classdef tRuleSet < matlab.unittest.TestCase
             testCase.verifyEqual(path.Path, "one");
         end
 
-        function tIsOverrideWhenLaterRuleAlsoMatches(testCase)
+        function tShadowsIndicesWhenLaterRuleAlsoMatches(testCase)
             exp = eLumina.gds.rules.ExplicitRule( ...
                 Path = "ref2/in1", Target = "explicit_override");
             rgx = eLumina.gds.rules.RegexRule( ...
                 Pattern = "^ref(\d+)/in(\d+)$", Template = "regex_${1}_${2}");
             rs = eLumina.gds.rules.RuleSet([exp, rgx]);
             sig = eLumina.gds.extract.SimulinkSignal("ref2/in1");
-            [~, ~, ~, isOverride] = rs.applyTo(sig);
-            testCase.verifyTrue(isOverride);
+            [~, ~, ~, shadows] = rs.applyTo(sig);
+            testCase.verifyEqual(shadows, 2);
         end
 
-        function tNotOverrideWhenOnlyOneRuleMatches(testCase)
+        function tCollectsAllShadowedIndices(testCase)
+            % Three rules all matching; firing rule shadows the two below.
+            r1 = eLumina.gds.rules.ExplicitRule(Path = "x", Target = "first");
+            r2 = eLumina.gds.rules.RegexRule(Pattern = "^x$", Template = "second");
+            r3 = eLumina.gds.rules.RegexRule(Pattern = "^x$", Template = "third");
+            rs = eLumina.gds.rules.RuleSet([r1, r2, r3]);
+            sig = eLumina.gds.extract.SimulinkSignal("x");
+            [~, ~, ruleIdx, shadows] = rs.applyTo(sig);
+            testCase.verifyEqual(ruleIdx, 1);
+            testCase.verifyEqual(shadows, [2, 3]);
+        end
+
+        function tNoShadowsWhenOnlyOneRuleMatches(testCase)
             exp = eLumina.gds.rules.ExplicitRule( ...
                 Path = "ref2/in1", Target = "only_match");
             rgx = eLumina.gds.rules.RegexRule( ...
                 Pattern = "^doesNotMatch$", Template = "x");
             rs = eLumina.gds.rules.RuleSet([exp, rgx]);
             sig = eLumina.gds.extract.SimulinkSignal("ref2/in1");
-            [~, ~, ~, isOverride] = rs.applyTo(sig);
-            testCase.verifyFalse(isOverride);
+            [~, ~, ~, shadows] = rs.applyTo(sig);
+            testCase.verifyEmpty(shadows);
         end
 
-        function tNotOverrideOnNoMatch(testCase)
+        function tNoShadowsOnNoMatch(testCase)
             rgx = eLumina.gds.rules.RegexRule( ...
                 Pattern = "^x$", Template = "y");
             rs = eLumina.gds.rules.RuleSet(rgx);
             sig = eLumina.gds.extract.SimulinkSignal("notMatchedAtAll");
-            [~, ~, ~, isOverride] = rs.applyTo(sig);
-            testCase.verifyFalse(isOverride);
+            [~, ~, ~, shadows] = rs.applyTo(sig);
+            testCase.verifyEmpty(shadows);
         end
 
         function tReplaceSwapsRuleAtIndex(testCase)
