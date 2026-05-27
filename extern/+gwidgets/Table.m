@@ -784,6 +784,97 @@ classdef Table < gwidgets.internal.Reparentable
 
     end
 
+    %% Tooltips
+    properties (Dependent)
+        Tooltip (1,1) string % Table-wide tooltip; pass-through to uitable.Tooltip
+    end
+
+    properties (GetAccess = ?matlab.unittest.TestCase, SetAccess = protected)
+        Tooltips (1,:) gwidgets.internal.table.TableTooltip
+    end
+
+    properties (Access = protected)
+        TableTooltipText_ (1,1) string = ""
+    end
+
+    methods
+        function addTooltip(this, text, tableTarget, targetIndicesOrFunction, nvp)
+            % addTooltip registers a hover-tooltip configuration. Mirrors addStyle.
+            %   addTooltip(t, "Click to open", "table")
+            %   addTooltip(t, "Patient height (cm)", "column", 4)
+            %   addTooltip(t, "Outlier", "cell", [3 2; 5 7])
+            %   addTooltip(t, @(v) "Value: " + v, "column", [2 3])
+            %     ^ function form (1 arg): hovered cell value
+            %   addTooltip(t, @(~, col) "Max: " + max(col), "column", 4)
+            %     ^ function form (2 args): cell value + target-shaped
+            %       context (column -> vector, row -> 1xN table,
+            %       table -> full DisplayData, cell -> cell value)
+            arguments
+                this (1,1) gwidgets.Table
+                text % string scalar OR function_handle (cellValue) -> string
+                tableTarget (1,1) string {mustBeMember(tableTarget, ["table", "row", "column", "cell"])} = "table"
+                targetIndicesOrFunction (:,:) = []
+                nvp.SelectionMode (1,1) gwidgets.internal.table.SelectionMode = gwidgets.internal.table.SelectionMode.Data
+            end
+
+            if tableTarget == "table"
+                newTooltip = gwidgets.internal.table.TableTooltip(text, tableTarget, "SelectionMode", nvp.SelectionMode);
+            elseif isa(targetIndicesOrFunction, "function_handle")
+                newTooltip = gwidgets.internal.table.TableTooltip(text, tableTarget, "TargetFunction", targetIndicesOrFunction, "SelectionMode", nvp.SelectionMode);
+            elseif isnumeric(targetIndicesOrFunction)
+                newTooltip = gwidgets.internal.table.TableTooltip(text, tableTarget, "TargetIndices", targetIndicesOrFunction, "SelectionMode", nvp.SelectionMode);
+            else
+                error("GraphicsWidgets:Table:TooltipTarget", ...
+                    "Tooltip target must be an index array or a function that takes the table object as input.");
+            end
+
+            % Validate indices upfront against current data so registration
+            % errors surface here, not later inside the hover callback.
+            if tableTarget ~= "table"
+                idx = newTooltip.indices(this);
+                if newTooltip.SelectionMode == gwidgets.internal.table.SelectionMode.Data && ~isempty(idx)
+                    this.dataSelectionToDisplaySelection(idx, tableTarget);
+                end
+            end
+
+            wasEmpty = isempty(this.Tooltips);
+            this.Tooltips(end+1) = newTooltip;
+            if wasEmpty
+                this.sendHoverEnableToBridge();
+            end
+        end
+
+        function removeTooltip(this, orderNum)
+            arguments
+                this
+                orderNum (1,:) double = []
+            end
+
+            if isempty(orderNum)
+                this.Tooltips(:) = [];
+            else
+                this.Tooltips(orderNum) = [];
+            end
+
+            if isempty(this.Tooltips)
+                this.sendHoverDisableToBridge();
+            end
+        end
+    end
+
+    methods % Get/Set Tooltip
+        function val = get.Tooltip(this)
+            val = this.TableTooltipText_;
+        end
+
+        function set.Tooltip(this, val)
+            this.TableTooltipText_ = val;
+            if ~isempty(this.DisplayTable)
+                this.DisplayTable.Tooltip = val;
+            end
+        end
+    end
+
     %% Context Menu
     properties (Hidden, Dependent)
         CustomContextMenuItems (1,:) matlab.ui.container.Menu
@@ -1071,6 +1162,12 @@ classdef Table < gwidgets.internal.Reparentable
         end
 
         function set.OpenGroups(this, val)
+
+            idx = ismember(val, this.Groups);
+            if any(~idx)
+                error("GraphicsWidgets:Table:NonexistentGroupingVariable", "Grouping variables not found: " + strjoin(val(~idx), ", "));
+            end
+
             idx = ismember(this.Groups, val);
             this.OpenGroups_ = this.Groups(idx);
             if this.UpdateManager.doRun("OpenGroups")
@@ -1506,6 +1603,11 @@ classdef Table < gwidgets.internal.Reparentable
             this.addContextMenu();
             this.setupColumnWidthBridge();
             this.doUpdateSequence();
+
+            % Apply any tooltip state that was configured before setup ran.
+            % The bridge will enable hover reports once it signals BridgeReady,
+            % and onBridgeData(BridgeReady) takes care of HoverEnable below.
+            this.DisplayTable.Tooltip = this.TableTooltipText_;
         end
 
         function updateDisplayData(this)
@@ -1846,6 +1948,9 @@ classdef Table < gwidgets.internal.Reparentable
                         struct("tableTag", this.DisplayTableTag_));
                     sendEventToHTMLSource(this.ColumnWidthBridge_, "Diag", this.BridgeDiagEnabled);
                     this.sendReadyToBridge();
+                    if ~isempty(this.Tooltips)
+                        this.sendHoverEnableToBridge();
+                    end
 
                 case "ColumnWidthChanged"
                     % Bridge fires on every ResizeObserver callback.
@@ -1869,10 +1974,26 @@ classdef Table < gwidgets.internal.Reparentable
                         this.sendRestoreToBridge();
                     end
 
+                case "CellHover"
+                    if ~isempty(this.Tooltips)
+                        text = this.resolveTooltipText(double(d.row), double(d.col));
+                        this.applyTooltipText(text);
+                    end
+
                 case "BridgeDiag"
                     fprintf("%s\n", d.msg);
 
             end
+        end
+
+        function sendHoverEnableToBridge(this)
+            if isempty(this.ColumnWidthBridge_), return; end
+            sendEventToHTMLSource(this.ColumnWidthBridge_, "HoverEnable", []);
+        end
+
+        function sendHoverDisableToBridge(this)
+            if isempty(this.ColumnWidthBridge_), return; end
+            sendEventToHTMLSource(this.ColumnWidthBridge_, "HoverDisable", []);
         end
 
         function onBridgeReattachNeeded(this)
@@ -1914,6 +2035,14 @@ classdef Table < gwidgets.internal.Reparentable
             % pixelWidths: positive pixel widths for all visible columns.
             this.updateStoresFromBridgeWidths(pixelWidths);
             this.applyColumnWidthToDisplay();
+        end
+
+        function text = simulateBridgeHover(this, displayRow, displayColumn)
+            % Simulate a CellHover notification from the bridge without
+            % requiring a live DOM/figure. Returns the resolved tooltip text
+            % that would be displayed.
+            text = this.resolveTooltipText(displayRow, displayColumn);
+            this.applyTooltipText(text);
         end
 
         function changed = didBridgeWidthsChange(this, incomingPx)
@@ -2366,6 +2495,8 @@ classdef Table < gwidgets.internal.Reparentable
                 this.GroupColumnIdx = zeros(1,0);
                 this.GroupFilteredCount = zeros(1,0);
                 this.GroupIdxs = zeros(1,0);
+                this.OpenGroups_ = string.empty(1,0);
+                this.HiddenGroups_ = string.empty(1,0);
 
                 this.GroupedDataToVisibleMap = this.FilteredDataToVisibleMap;
                 this.GroupedVisibleToDataMap = this.FilteredVisibleToDataMap;
@@ -2391,6 +2522,11 @@ classdef Table < gwidgets.internal.Reparentable
 
                 this.Groups = allGroups;
                 this.GroupIdxs = groupIdxs;
+
+                % Drop any open/hidden group state that no longer corresponds
+                % to a current group (e.g. after switching GroupingVariable).
+                this.OpenGroups_ = this.OpenGroups_(ismember(this.OpenGroups_, this.Groups));
+                this.HiddenGroups_ = this.HiddenGroups_(ismember(this.HiddenGroups_, this.Groups));
 
                 if numel(g) > 1
                     filteredGroupVars = arrayfun(@(x) this.FilteredData.(x), g, "UniformOutput", false);
@@ -2628,6 +2764,113 @@ classdef Table < gwidgets.internal.Reparentable
                 else
                     this.OpenGroups = [this.OpenGroups, group];
                 end
+            end
+        end
+
+        function applyTooltipText(this, text)
+            % Send the resolved text to the bridge, which stamps the DOM
+            % `title` attribute on the hovered cell. We deliberately do NOT
+            % write to DisplayTable.Tooltip — uitable only reads that
+            % property on mouse-enter, so updates while the cursor is over
+            % the table are invisible until the user leaves and comes
+            % back. The per-cell DOM title refreshes naturally on each
+            % cell transition.
+            if isempty(this.ColumnWidthBridge_) || ~isvalid(this.ColumnWidthBridge_)
+                return
+            end
+            sendEventToHTMLSource(this.ColumnWidthBridge_, "SetTitle", ...
+                struct("text", char(text)));
+        end
+
+        function text = resolveTooltipText(this, displayRow, displayColumn)
+            % Resolve a hovered display cell to tooltip text. Every matching
+            % tooltip contributes one line; lines are ordered most-specific
+            % to least (cell -> row -> column -> table). Among entries with
+            % the same target, registration order is preserved. If nothing
+            % matches, fall back to the table-wide Tooltip property.
+            priorities = ["cell", "row", "column", "table"];
+            byRank = cell(1, numel(priorities));
+            anyMatch = false;
+            cellValue = this.cellValueForHover(displayRow, displayColumn);
+            for i = 1:numel(this.Tooltips)
+                tt = this.Tooltips(i);
+                try
+                    idx = tt.indices(this);
+                    if tt.Target ~= "table" && tt.SelectionMode == gwidgets.internal.table.SelectionMode.Data && ~isempty(idx)
+                        idx = this.dataSelectionToDisplaySelection(idx, tt.Target);
+                    end
+                catch
+                    % Configured indices don't resolve against current data
+                    % (e.g. data shape changed since registration). Skip this
+                    % tooltip rather than breaking the hover callback.
+                    continue
+                end
+                resolved = tt;
+                resolved.TargetIndices = idx;
+                if resolved.matches(displayRow, displayColumn)
+                    rank = find(priorities == tt.Target, 1);
+                    try
+                        contextValue = this.contextForHover(tt.Target, displayRow, displayColumn);
+                        rendered = tt.textFor(cellValue, contextValue);
+                    catch err
+                        rendered = "[tooltip error: " + string(err.message) + "]";
+                    end
+                    byRank{rank} = [byRank{rank}; rendered];
+                    anyMatch = true;
+                end
+            end
+
+            if ~anyMatch
+                text = this.TableTooltipText_;
+                return
+            end
+
+            lines = vertcat(byRank{:});
+            text = strjoin(lines, newline);
+        end
+
+        function val = cellValueForHover(this, displayRow, displayColumn)
+            % Return the value at the hovered display cell, or missing
+            % when (row, col) doesn't reference a body cell.
+            val = missing;
+            if displayRow < 1 || displayColumn < 1
+                return
+            end
+            data = this.DisplayData;
+            if displayRow > size(data, 1) || displayColumn > width(data)
+                return
+            end
+            val = data{displayRow, displayColumn};
+            if iscell(val) && isscalar(val)
+                val = val{1};
+            end
+        end
+
+        function ctx = contextForHover(this, target, displayRow, displayColumn)
+            % Build the second argument passed to a tooltip's TextFunction.
+            % Shape depends on the tooltip's target:
+            %   "column" -> the hovered column as a vector
+            %   "row"    -> the hovered row as a 1xN table
+            %   "table"  -> the full DisplayData table
+            %   "cell"   -> the hovered cell value (same as the first arg)
+            data = this.DisplayData;
+            switch target
+                case "column"
+                    if displayColumn >= 1 && displayColumn <= width(data)
+                        ctx = data{:, displayColumn};
+                    else
+                        ctx = missing;
+                    end
+                case "row"
+                    if displayRow >= 1 && displayRow <= size(data, 1)
+                        ctx = data(displayRow, :);
+                    else
+                        ctx = missing;
+                    end
+                case "table"
+                    ctx = data;
+                otherwise
+                    ctx = this.cellValueForHover(displayRow, displayColumn);
             end
         end
 
