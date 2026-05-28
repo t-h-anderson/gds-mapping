@@ -24,6 +24,7 @@ classdef MappingView < handle
         TestMatchLabel
         TestPathLabel
         ChangedListener
+        Syncing (1,1) logical = false  % guards the two-way selection sync
     end
 
     methods
@@ -87,7 +88,8 @@ classdef MappingView < handle
                 Multiselect = "on", ...
                 ShowRowFilter = true, ...
                 HasToggleFilter = true, ...
-                HasChangeGroupingVariable=true);
+                HasChangeGroupingVariable=true, ...
+                CellSelectionCallback = @(~,~) obj.onResultSelected());
             obj.ResultsTable.Layout.Row = 1;
             obj.ResultsTable.Layout.Column = 1;
 
@@ -142,10 +144,11 @@ classdef MappingView < handle
                 ColumnNames = ["Kind", "Pattern / Path", ...
                                "Template / Target", "Notes"], ...
                 SelectionType = "row", ...
+                Multiselect = "on", ...
                 ShowRowFilter = false, ...
                 HasToggleFilter=true, ...
                 CellDoubleClickCallback = @(~,~) obj.onEditRule(), ...
-                CellSelectionCallback = @(~,~) obj.applyResultStyles());
+                CellSelectionCallback = @(~,~) obj.onRuleSelected());
             obj.RulesTable.Layout.Row = 2;
             obj.RulesTable.Layout.Column = 1;
         end
@@ -153,17 +156,15 @@ classdef MappingView < handle
         function refresh(obj)
             obj.ResultsTable.Data = obj.resultsToTable(obj.Session.Results);
             obj.RulesTable.Data = obj.rulesToTable(obj.Session.Rules.Rules);
-            obj.applyResultStyles();
+            obj.applyOverrideStyles();
         end
 
-        function applyResultStyles(obj)
+        function applyOverrideStyles(obj)
             obj.ResultsTable.removeStyle();
             results = obj.Session.Results;
             if isempty(results)
-                obj.ResultsTable.Selection = [];
                 return
             end
-
             % Override rows in warm yellow. Explicit data-mode indices
             % (gwidgets translates them through sort/filter); only added
             % when there's at least one, since uitable.addStyle rejects
@@ -174,15 +175,42 @@ classdef MappingView < handle
                     BackgroundColor = [1, 0.93, 0.70]);
                 obj.ResultsTable.addStyle(overrideStyle, "row", overrideRows);
             end
+        end
 
+        function onRuleSelected(obj)
+            % Rule clicked -> select the results it produced.
+            if obj.Syncing; return; end
+            results = obj.Session.Results;
             sel = obj.RulesTable.Selection;
-            if isempty(sel)
+            obj.Syncing = true;
+            resetSync = onCleanup(@() obj.endSync()); %#ok<NASGU>
+            if isempty(sel) || isempty(results)
                 obj.ResultsTable.Selection = [];
                 return
             end
             ruleIdx = sel(1);
-            matchingRows = find(arrayfun(@(r) r.RuleIndex == ruleIdx, results));
-            obj.ResultsTable.Selection = matchingRows;
+            obj.ResultsTable.Selection = ...
+                find(arrayfun(@(r) r.RuleIndex == ruleIdx, results));
+        end
+
+        function onResultSelected(obj)
+            % Result clicked -> select the rule(s) that produced it.
+            if obj.Syncing; return; end
+            results = obj.Session.Results;
+            sel = obj.ResultsTable.Selection;
+            obj.Syncing = true;
+            resetSync = onCleanup(@() obj.endSync()); %#ok<NASGU>
+            if isempty(sel) || isempty(results)
+                obj.RulesTable.Selection = [];
+                return
+            end
+            ruleIdx = unique([results(sel).RuleIndex]);
+            ruleIdx = ruleIdx(ruleIdx > 0);
+            obj.RulesTable.Selection = ruleIdx;
+        end
+
+        function endSync(obj)
+            obj.Syncing = false;
         end
 
         function onLoadModel(obj)
