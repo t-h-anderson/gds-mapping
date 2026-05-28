@@ -195,7 +195,7 @@ function tf = isMFB(blockPath)
 end
 
 function m = mfbFieldMap(blockPath)
-    charts = sfroot.find('-isa', 'Stateflow.EMChart');
+    charts = sfroot().find('-isa', 'Stateflow.EMChart');
     script = "";
     for i = 1:numel(charts)
         if string(charts(i).Path) == string(blockPath)

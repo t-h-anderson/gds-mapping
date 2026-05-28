@@ -34,7 +34,9 @@ jobs:
             import matlab.unittest.plugins.XMLPlugin;
             import matlab.unittest.plugins.CodeCoveragePlugin;
             import matlab.unittest.plugins.codecoverage.CoberturaFormat;
-            suite  = testsuite('test', 'IncludeSubfolders', true);
+            suite = testsuite('test', 'IncludeSubpackages', true);
+            fprintf('Discovered %d tests\n', numel(suite));
+            assert(~isempty(suite), 'No tests discovered — check namespace/path.');
             runner = matlab.unittest.TestRunner.withTextOutput;
             runner.addPlugin(XMLPlugin.producingJUnitFormat('test-results/results.xml'));
             runner.addPlugin(CodeCoveragePlugin.forFolder('src', ...
