@@ -17,7 +17,8 @@ function fields = enumerateBusFields(busName, dd)
     end
 
     try
-        entry = getEntry(dd, char(busName));
+        section = getSection(dd, 'Design Data');
+        entry = getEntry(section, char(busName));
         bus = getValue(entry);
     catch
         fields = string.empty(1,0);
