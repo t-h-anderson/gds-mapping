@@ -25,7 +25,12 @@ function ruleSet = readRules(csvPath)
     cleanupTmp = onCleanup(@() deleteIfExists(tmpFile)); %#ok<NASGU>
     writelines(cleaned, tmpFile);
 
-    opts = detectImportOptions(tmpFile);
+    % Force comma delimiter and a fixed header/data split. Auto-detection
+    % otherwise picks whitespace as the delimiter because Notes fields
+    % contain spaces, which shreds the columns.
+    opts = detectImportOptions(tmpFile, "Delimiter", ",");
+    opts.VariableNamesLine = 1;
+    opts.DataLines = [2 Inf];
     required = ["Kind", "SimulinkPattern", "IecPathTemplate"];
     missingCols = setdiff(required, string(opts.VariableNames));
     if ~isempty(missingCols)
