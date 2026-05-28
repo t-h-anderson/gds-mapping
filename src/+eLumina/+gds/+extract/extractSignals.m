@@ -36,10 +36,15 @@ function signals = extractSignals(modelPath)
 
     chunks = cell(1,0);
 
+    % Model references at any depth (controllers may be tucked inside
+    % organisational subsystems). The block's path relative to the model
+    % becomes the signal prefix, so a nested "Ctrls/ctrl1" stays distinct
+    % from a root-level "ctrl1".
     modelRefs = find_system(char(modelName), ...
-        'SearchDepth', 1, 'BlockType', 'ModelReference');
+        'LookUnderMasks', 'all', 'BlockType', 'ModelReference');
     for k = 1:numel(modelRefs)
-        chunks{end+1} = expandModelReferencePorts(modelRefs{k}, dd); %#ok<AGROW>
+        chunks{end+1} = expandModelReferencePorts( ...
+            string(modelRefs{k}), modelName, dd); %#ok<AGROW>
     end
 
     chunks{end+1} = collectRootPorts(modelName, "Inport");
@@ -61,12 +66,13 @@ function dd = openDataDictionary(modelName)
     end
 end
 
-function leaves = expandModelReferencePorts(refBlock, dd)
-    refBlockName = string(get_param(refBlock, 'Name'));
-    inNames = string(get_param(refBlock, 'InputPortNames'));
-    inBuses = string(get_param(refBlock, 'InputPortBusObjects'));
-    outNames = string(get_param(refBlock, 'OutputPortNames'));
-    outBuses = string(get_param(refBlock, 'OutputPortBusObjects'));
+function leaves = expandModelReferencePorts(refBlockPath, modelName, dd)
+    % Path relative to the model, e.g. "Ctrls/ctrl1" or just "ctrl1".
+    refBlockName = extractAfter(refBlockPath, modelName + "/");
+    inNames = string(get_param(char(refBlockPath), 'InputPortNames'));
+    inBuses = string(get_param(char(refBlockPath), 'InputPortBusObjects'));
+    outNames = string(get_param(char(refBlockPath), 'OutputPortNames'));
+    outBuses = string(get_param(char(refBlockPath), 'OutputPortBusObjects'));
 
     chunks = cell(1,0);
     for j = 1:numel(inNames)
