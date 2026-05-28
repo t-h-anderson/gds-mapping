@@ -3,24 +3,29 @@ function plantSig = traceToPlant(modelName, signal)
     %
     %   plantSig = traceToPlant(modelName, signal)
     %
-    %   Walks the wires from a controller ModelReference port back (for
-    %   inputs) or forward (for outputs) through translator MATLAB
-    %   Function blocks until it reaches a plant-side terminal (the Plant
-    %   subsystem or a Constant block). Returns the PlantSignal at that
-    %   terminal, or an empty PlantSignal array when the signal has no
-    %   plant equivalent (untraceable -> "internal").
+    %   Walks the wires from a controller ModelReference port to its
+    %   plant-side origin: inputs trace backward, outputs trace forward.
+    %   On the way it transparently crosses organisational subsystem
+    %   boundaries (an Inport/Outport block inside a subsystem hands off
+    %   to the corresponding external port of that subsystem) and remaps
+    %   the bus field through each translator MATLAB Function block. The
+    %   first real block reached on the far side (Plant subsystem,
+    %   Constant, another subsystem boundary block) is the terminal.
     %
-    %   Only simple "out.x = in.y" translator scripts are followed; any
-    %   output field a script computes rather than copies is treated as
-    %   untraceable.
+    %   Returns an empty PlantSignal when the signal has no plant
+    %   equivalent (untraceable -> "internal"). Only simple
+    %   "out.x = in.y" translator scripts are followed.
 
     arguments
         modelName (1,1) string
         signal (1,1) eLumina.gds.extract.SimulinkSignal
     end
 
+    % InstancePath is the model-relative block path plus port name, e.g.
+    % "Controllers/ctrl1/In1": the block is everything but the last
+    % segment, the port is the last segment.
     parts = split(signal.InstancePath, "/");
-    blockPath = modelName + "/" + parts(1);
+    blockPath = modelName + "/" + join(parts(1:end-1), "/");
     portName = parts(end);
 
     if signal.PortType == "Inport"
@@ -54,6 +59,13 @@ function [plantSig, ok] = traceBack(blockPath, portNum, field)
     if srcBlock == ""
         return
     end
+    bt = blockType(srcBlock);
+    if bt == "Inport"
+        % Subsystem boundary: hand off to the parent's external input.
+        [parentSub, p] = crossBoundary(srcBlock);
+        [plantSig, ok] = traceBack(parentSub, p, field);
+        return
+    end
     if isMFB(srcBlock)
         m = mfbFieldMap(srcBlock);
         if ~isKey(m, field)
@@ -75,6 +87,13 @@ function [plantSig, ok] = traceFwd(blockPath, portNum, field)
     if dstBlock == ""
         return
     end
+    bt = blockType(dstBlock);
+    if bt == "Outport"
+        % Subsystem boundary: hand off to the parent's external output.
+        [parentSub, p] = crossBoundary(dstBlock);
+        [plantSig, ok] = traceFwd(parentSub, p, field);
+        return
+    end
     if isMFB(dstBlock)
         m = mfbFieldMap(dstBlock);
         outField = reverseLookup(m, field);
@@ -85,6 +104,14 @@ function [plantSig, ok] = traceFwd(blockPath, portNum, field)
         return
     end
     [plantSig, ok] = terminal(dstBlock, dstPort, "Inport", field);
+end
+
+function [parentSub, portNum] = crossBoundary(portBlock)
+    parentSub = string(get_param(char(portBlock), 'Parent'));
+    portNum = str2double(string(get_param(char(portBlock), 'Port')));
+    if isnan(portNum)
+        portNum = 1;
+    end
 end
 
 function out = reverseLookup(m, inField)
@@ -140,9 +167,9 @@ end
 function [plantSig, ok] = terminal(blockPath, portNum, portType, field)
     plantSig = eLumina.gds.extract.PlantSignal.empty(1,0);
     ok = false;
-    blockType = string(get_param(char(blockPath), 'BlockType'));
+    bt = blockType(blockPath);
     blockName = string(get_param(char(blockPath), 'Name'));
-    switch blockType
+    switch bt
         case "SubSystem"
             portName = subsystemPortName(blockPath, portType, portNum);
             plantSig = eLumina.gds.extract.PlantSignal( ...
@@ -153,6 +180,10 @@ function [plantSig, ok] = terminal(blockPath, portNum, portType, field)
                 blockName, BusField = field);
             ok = true;
     end
+end
+
+function bt = blockType(blockPath)
+    bt = string(get_param(char(blockPath), 'BlockType'));
 end
 
 function tf = isMFB(blockPath)
