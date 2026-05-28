@@ -56,13 +56,13 @@ end
 function dd = openDataDictionary(modelName)
     ddName = string(get_param(char(modelName), 'DataDictionary'));
     if ddName == ""
-        dd = Simulink.data.dictionary.Dictionary.empty;
+        dd = Simulink.data.Dictionary.empty;
         return
     end
     try
         dd = Simulink.data.dictionary.open(char(ddName));
     catch
-        dd = Simulink.data.dictionary.Dictionary.empty;
+        dd = Simulink.data.Dictionary.empty;
     end
 end
 

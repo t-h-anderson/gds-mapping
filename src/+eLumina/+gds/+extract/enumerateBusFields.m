@@ -13,7 +13,7 @@ function fields = enumerateBusFields(busName, dd)
 
     arguments
         busName (1,1) string
-        dd (1,1) Simulink.data.dictionary.Dictionary
+        dd (1,1) Simulink.data.Dictionary
     end
 
     try
