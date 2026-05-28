@@ -54,7 +54,7 @@ classdef trun < matlab.unittest.TestCase
             testCase.verifyEqual(height(tbl), 13);
             testCase.verifyEqual( ...
                 sort(string(tbl.Properties.VariableNames)), ...
-                sort(["SimulinkPath", "IecPath", "Status", "RuleSource"]));
+                sort(["SimulinkPath", "PlantPath", "IecPath", "Status", "RuleSource"]));
         end
     end
 end

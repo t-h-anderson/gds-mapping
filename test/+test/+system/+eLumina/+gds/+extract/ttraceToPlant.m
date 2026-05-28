@@ -4,13 +4,9 @@ classdef ttraceToPlant < matlab.unittest.TestCase
     %   params via an Inputs subsystem, translation through MATLAB
     %   Function blocks. Needs Simulink.
 
-    properties (Constant)
-        ModelPath = fullfile(test.util.fixturesPath(), "DemoPlant.slx")
-    end
-
     methods (TestClassSetup)
         function loadModel(testCase)
-            modelPath = ttraceToPlant.ModelPath;
+            modelPath = fullfile(test.util.fixturesPath(), "DemoPlant.slx");
             folder = fileparts(modelPath);
             testCase.applyFixture( ...
                 matlab.unittest.fixtures.PathFixture(folder));

@@ -164,12 +164,16 @@ classdef MappingView < handle
                 return
             end
 
-            % Function-based target so the highlight follows the row
-            % through any sort/filter the user applies in the widget.
-            overrideStyle = matlab.ui.style.Style( ...
-                BackgroundColor = [1, 0.93, 0.70]);
-            obj.ResultsTable.addStyle(overrideStyle, "row", ...
-                @(t) find(t.Data.IsOverride));
+            % Override rows in warm yellow. Explicit data-mode indices
+            % (gwidgets translates them through sort/filter); only added
+            % when there's at least one, since uitable.addStyle rejects
+            % an empty row index.
+            overrideRows = find(arrayfun(@(r) r.IsOverride, results));
+            if ~isempty(overrideRows)
+                overrideStyle = matlab.ui.style.Style( ...
+                    BackgroundColor = [1, 0.93, 0.70]);
+                obj.ResultsTable.addStyle(overrideStyle, "row", overrideRows);
+            end
 
             sel = obj.RulesTable.Selection;
             if isempty(sel)

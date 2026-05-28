@@ -2,14 +2,9 @@ classdef tExtractSignals < matlab.unittest.TestCase
     %TEXTRACTSIGNALS Tests for eLumina.gds.extract.extractSignals against
     %   the DemoPlant fixture (controller bus-leaves).
 
-    properties (Constant)
-        ModelPath = fullfile(test.util.fixturesPath(), "DemoPlant.slx")
-        LoadedModels = ["DemoPlant", "DemoController"]
-    end
-
     methods (TestMethodTeardown)
         function closeLoadedModels(testCase) %#ok<MANU>
-            for name = tExtractSignals.LoadedModels
+            for name = ["DemoPlant", "DemoController"]
                 if bdIsLoaded(char(name))
                     close_system(char(name), 0);
                 end
@@ -19,8 +14,8 @@ classdef tExtractSignals < matlab.unittest.TestCase
 
     methods (Test)
         function tEmitsBusLeafSignalsPerModelRefPort(testCase)
-            signals = eLumina.gds.extract.extractSignals( ...
-                tExtractSignals.ModelPath);
+            modelPath = fullfile(test.util.fixturesPath(), "DemoPlant.slx");
+            signals = eLumina.gds.extract.extractSignals(modelPath);
 
             paths = arrayfun(@(s) s.fullPath(), signals);
             expected = [...
@@ -35,8 +30,8 @@ classdef tExtractSignals < matlab.unittest.TestCase
         end
 
         function tDistinguishesInportFromOutport(testCase)
-            signals = eLumina.gds.extract.extractSignals( ...
-                tExtractSignals.ModelPath);
+            modelPath = fullfile(test.util.fixturesPath(), "DemoPlant.slx");
+            signals = eLumina.gds.extract.extractSignals(modelPath);
 
             byPath = dictionary( ...
                 arrayfun(@(s) s.fullPath(), signals), ...
@@ -51,8 +46,8 @@ classdef tExtractSignals < matlab.unittest.TestCase
         end
 
         function tPopulatesBusField(testCase)
-            signals = eLumina.gds.extract.extractSignals( ...
-                tExtractSignals.ModelPath);
+            modelPath = fullfile(test.util.fixturesPath(), "DemoPlant.slx");
+            signals = eLumina.gds.extract.extractSignals(modelPath);
             byPath = dictionary( ...
                 arrayfun(@(s) s.fullPath(), signals), ...
                 1:numel(signals));
@@ -63,11 +58,10 @@ classdef tExtractSignals < matlab.unittest.TestCase
         end
 
         function tIsIdempotentWhenModelAlreadyLoaded(testCase)
-            load_system(char(tExtractSignals.ModelPath));
-            signals1 = eLumina.gds.extract.extractSignals( ...
-                tExtractSignals.ModelPath);
-            signals2 = eLumina.gds.extract.extractSignals( ...
-                tExtractSignals.ModelPath);
+            modelPath = fullfile(test.util.fixturesPath(), "DemoPlant.slx");
+            load_system(char(modelPath));
+            signals1 = eLumina.gds.extract.extractSignals(modelPath);
+            signals2 = eLumina.gds.extract.extractSignals(modelPath);
             testCase.verifyEqual(numel(signals1), numel(signals2));
         end
     end

@@ -195,15 +195,35 @@ function tf = isMFB(blockPath)
 end
 
 function m = mfbFieldMap(blockPath)
-    charts = sfroot().find('-isa', 'Stateflow.EMChart');
+    m = eLumina.gds.extract.parseMFBScript(readMFBScript(blockPath));
+end
+
+function script = readMFBScript(blockPath)
     script = "";
-    for i = 1:numel(charts)
-        if string(charts(i).Path) == string(blockPath)
-            script = string(charts(i).Script);
-            break
-        end
+    % Documented API (R2022a+): read the block's code straight from the
+    % block path, no Stateflow chart-path matching required.
+    try
+        cfg = Simulink.MATLABFunctionConfiguration(char(blockPath));
+        script = string(cfg.FunctionScript);
+    catch
     end
-    m = eLumina.gds.extract.parseMFBScript(script);
+    if strlength(script) > 0
+        return
+    end
+    % Fallback: scan Stateflow charts, matching the full path or, if that
+    % property is partial on this release, the block-name suffix.
+    try
+        blockName = string(get_param(char(blockPath), 'Name'));
+        charts = sfroot().find('-isa', 'Stateflow.EMChart');
+        for i = 1:numel(charts)
+            p = string(charts(i).Path);
+            if p == string(blockPath) || endsWith(p, "/" + blockName)
+                script = string(charts(i).Script);
+                return
+            end
+        end
+    catch
+    end
 end
 
 function name = subsystemPortName(blockPath, portType, portNum)
