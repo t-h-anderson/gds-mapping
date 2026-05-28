@@ -69,10 +69,10 @@ end
 function leaves = expandModelReferencePorts(refBlockPath, modelName, dd)
     % Path relative to the model, e.g. "Ctrls/ctrl1" or just "ctrl1".
     refBlockName = extractAfter(refBlockPath, modelName + "/");
-    inNames = string(get_param(char(refBlockPath), 'InputPortNames'));
-    inBuses = string(get_param(char(refBlockPath), 'InputPortBusObjects'));
-    outNames = string(get_param(char(refBlockPath), 'OutputPortNames'));
-    outBuses = string(get_param(char(refBlockPath), 'OutputPortBusObjects'));
+    inNames = eLumina.gds.extract.portNameList(get_param(char(refBlockPath), 'InputPortNames'));
+    inBuses = eLumina.gds.extract.portNameList(get_param(char(refBlockPath), 'InputPortBusObjects'));
+    outNames = eLumina.gds.extract.portNameList(get_param(char(refBlockPath), 'OutputPortNames'));
+    outBuses = eLumina.gds.extract.portNameList(get_param(char(refBlockPath), 'OutputPortBusObjects'));
 
     chunks = cell(1,0);
     for j = 1:numel(inNames)

@@ -72,6 +72,41 @@ classdef trunMapping < matlab.unittest.TestCase
             testCase.verifyEqual(results(2).RuleIndex, 2);
         end
 
+        function tMatchesAgainstPlantPathsWhenProvided(testCase)
+            r = eLumina.gds.rules.RegexRule( ...
+                Pattern = "^Plant/pIn\.(\w+)$", Template = "MMXU.${1}");
+            rs = eLumina.gds.rules.RuleSet(r);
+            sig = eLumina.gds.extract.SimulinkSignal( ...
+                "Controllers/ctrl1/In1", PortType = "Inport", BusField = "a");
+            results = eLumina.gds.map.runMapping(sig, rs, ...
+                PlantPaths = "Plant/pIn.a_p");
+            testCase.verifyEqual(results.Status, eLumina.gds.map.ResultStatus.Mapped);
+            testCase.verifyEqual(results.PlantPath, "Plant/pIn.a_p");
+            testCase.verifyEqual(results.IecPath.Path, "MMXU.a_p");
+        end
+
+        function tInternalSignalSkipsMatching(testCase)
+            rs = eLumina.gds.rules.RuleSet( ...
+                eLumina.gds.rules.RegexRule(Pattern = "^.+$", Template = "x"));
+            sig = eLumina.gds.extract.SimulinkSignal( ...
+                "Controllers/ctrl1/State", BusField = "z");
+            results = eLumina.gds.map.runMapping(sig, rs, ...
+                PlantPaths = "", IsInternal = true);
+            testCase.verifyEqual(results.Status, eLumina.gds.map.ResultStatus.Internal);
+            testCase.verifyEqual(results.PlantPath, "");
+            testCase.verifyEqual(results.IecPath.Path, "");
+        end
+
+        function tLengthMismatchErrors(testCase)
+            rs = eLumina.gds.rules.RuleSet();
+            sigs = [ ...
+                eLumina.gds.extract.SimulinkSignal("a"), ...
+                eLumina.gds.extract.SimulinkSignal("b")];
+            testCase.verifyError( ...
+                @() eLumina.gds.map.runMapping(sigs, rs, PlantPaths = "only-one"), ...
+                "eLumina:gds:map:lengthMismatch");
+        end
+
         function tUnmappedHasRuleIndexZero(testCase)
             r = eLumina.gds.rules.RegexRule(Pattern = "^x$", Template = "y");
             rs = eLumina.gds.rules.RuleSet(r);

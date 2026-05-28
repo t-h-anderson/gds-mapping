@@ -42,7 +42,7 @@ function plantSig = traceToPlant(modelName, signal)
 end
 
 function n = portIndex(blockPath, prop, portName)
-    names = string(get_param(char(blockPath), char(prop)));
+    names = eLumina.gds.extract.portNameList(get_param(char(blockPath), char(prop)));
     n = find(names == portName, 1);
     if isempty(n)
         n = 0;

@@ -80,8 +80,8 @@ classdef MappingView < handle
             obj.ResultsTable = gwidgets.Table( ...
                 Parent = mid, ...
                 Data = obj.emptyResultsTable(), ...
-                ColumnNames = ["Signal", "IEC Path", "Status", "Rule", ...
-                               "IsOverride", "RuleIndex", "ShadowTooltip"], ...
+                ColumnNames = ["Signal", "Plant Path", "IEC Path", "Status", ...
+                               "Rule", "IsOverride", "RuleIndex", "ShadowTooltip"], ...
                 HiddenColumnNames = ["IsOverride", "RuleIndex", "ShadowTooltip"], ...
                 SelectionType = "row", ...
                 Multiselect = "on", ...
@@ -322,14 +322,15 @@ classdef MappingView < handle
     methods (Static, Access = private)
         function tbl = emptyResultsTable()
             Signal = strings(0,1);
+            PlantPath = strings(0,1);
             IecPath = strings(0,1);
             Status = strings(0,1);
             Rule = strings(0,1);
             IsOverride = false(0,1);
             RuleIndex = zeros(0,1);
             ShadowTooltip = strings(0,1);
-            tbl = table(Signal, IecPath, Status, Rule, IsOverride, ...
-                RuleIndex, ShadowTooltip);
+            tbl = table(Signal, PlantPath, IecPath, Status, Rule, ...
+                IsOverride, RuleIndex, ShadowTooltip);
         end
 
         function tbl = emptyRulesTable()
@@ -347,6 +348,7 @@ classdef MappingView < handle
                 return
             end
             Signal = strings(n,1);
+            PlantPath = strings(n,1);
             IecPath = strings(n,1);
             Status = strings(n,1);
             Rule = strings(n,1);
@@ -356,6 +358,7 @@ classdef MappingView < handle
             for k = 1:n
                 r = results(k);
                 Signal(k) = r.Signal.fullPath();
+                PlantPath(k) = r.PlantPath;
                 IecPath(k) = r.IecPath.Path;
                 Status(k) = string(r.Status);
                 Rule(k) = eLumina.gds.app.MappingSession.formatRuleDisplay( ...
@@ -367,8 +370,8 @@ classdef MappingView < handle
                         strjoin(string(r.Shadows), ", ") + "]";
                 end
             end
-            tbl = table(Signal, IecPath, Status, Rule, IsOverride, ...
-                RuleIndex, ShadowTooltip);
+            tbl = table(Signal, PlantPath, IecPath, Status, Rule, ...
+                IsOverride, RuleIndex, ShadowTooltip);
         end
 
         function tbl = rulesToTable(rules)

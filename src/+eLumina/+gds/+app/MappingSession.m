@@ -17,6 +17,11 @@ classdef MappingSession < handle
         RulesPath (1,1) string = ""
     end
 
+    properties (Access = private)
+        PlantPaths (1,:) string = string.empty
+        IsInternal (1,:) logical = logical.empty
+    end
+
     methods
         function obj = MappingSession()
             obj.Rules = eLumina.gds.rules.RuleSet();
@@ -53,7 +58,10 @@ classdef MappingSession < handle
                 obj
                 signals (1,:) eLumina.gds.extract.SimulinkSignal
             end
+            % No model trace: rules match the controller-side path.
             obj.Signals = signals;
+            obj.PlantPaths = string.empty;
+            obj.IsInternal = logical.empty;
             obj.recompute();
         end
 
@@ -63,7 +71,14 @@ classdef MappingSession < handle
                 modelPath (1,1) string {mustBeFile}
             end
             obj.ModelPath = modelPath;
-            obj.setSignals(eLumina.gds.extract.extractSignals(modelPath));
+            signals = eLumina.gds.extract.extractSignals(modelPath);
+            [~, modelName] = fileparts(modelPath);
+            [pp, ii] = eLumina.gds.extract.tracePlantPaths( ...
+                string(modelName), signals);
+            obj.Signals = signals;
+            obj.PlantPaths = pp;
+            obj.IsInternal = ii;
+            obj.recompute();
         end
 
         function addRule(obj, rule)
@@ -144,7 +159,8 @@ classdef MappingSession < handle
 
     methods (Access = private)
         function recompute(obj)
-            obj.Results = eLumina.gds.map.runMapping(obj.Signals, obj.Rules);
+            obj.Results = eLumina.gds.map.runMapping(obj.Signals, obj.Rules, ...
+                PlantPaths = obj.PlantPaths, IsInternal = obj.IsInternal);
             notify(obj, "Changed");
         end
     end
