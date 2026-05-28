@@ -36,6 +36,25 @@ classdef treadRules < matlab.unittest.TestCase
             testCase.verifyEqual(numel(rs.Rules), 1);
         end
 
+        function tHandlesMultipleCommentLinesAfterHeader(testCase)
+            % Reproduces the demoRules.csv shape: header, two comment
+            % lines, then data — which broke detectImportOptions'
+            % CommentStyle header detection.
+            testCase.applyFixture(matlab.unittest.fixtures.WorkingFolderFixture);
+            writelines([ ...
+                "Kind,SimulinkPattern,IecPathTemplate,Notes"; ...
+                "# comment one"; ...
+                "# comment two"; ...
+                "explicit,ctrl2/In1.a,esca_override,note"; ...
+                "regex,^ctrl(\d+)/In1\.(\w+)$,MMXU${1}.${2},"], ...
+                "rules.csv");
+
+            rs = eLumina.gds.io.readRules("rules.csv");
+            testCase.verifyEqual(numel(rs.Rules), 2);
+            testCase.verifyTrue(isa(rs.Rules(1), "eLumina.gds.rules.ExplicitRule"));
+            testCase.verifyEqual(rs.Rules(2).Pattern, "^ctrl(\d+)/In1\.(\w+)$");
+        end
+
         function tMissingRequiredColumnErrors(testCase)
             testCase.applyFixture(matlab.unittest.fixtures.WorkingFolderFixture);
             writelines([ ...
