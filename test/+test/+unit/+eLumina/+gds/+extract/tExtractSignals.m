@@ -64,5 +64,50 @@ classdef tExtractSignals < matlab.unittest.TestCase
             signals2 = eLumina.gds.extract.extractSignals(modelPath);
             testCase.verifyEqual(numel(signals1), numel(signals2));
         end
+
+        function tMissingDataDictionaryErrors(testCase)
+            tmpDir = copyDemoFixtureToTemp(testCase);
+            modelPath = fullfile(tmpDir, "DemoPlant.slx");
+
+            load_system(char(modelPath));
+            set_param("DemoPlant", "DataDictionary", "MissingData.sldd");
+            save_system("DemoPlant");
+            close_system("DemoPlant", 0);
+
+            testCase.verifyError( ...
+                @() eLumina.gds.extract.extractSignals(string(modelPath)), ...
+                "eLumina:gds:extract:dataDictionaryOpenFailed");
+        end
+    end
+end
+
+function tmpDir = copyDemoFixtureToTemp(testCase)
+    srcDir = test.util.fixturesPath();
+    tmpDir = string(tempname);
+    mkdir(tmpDir);
+
+    copyfile(fullfile(srcDir, "DemoPlant.slx"), fullfile(tmpDir, "DemoPlant.slx"));
+    copyfile(fullfile(srcDir, "DemoController.slx"), ...
+        fullfile(tmpDir, "DemoController.slx"));
+    copyfile(fullfile(srcDir, "Data.sldd"), fullfile(tmpDir, "Data.sldd"));
+
+    testCase.applyFixture(matlab.unittest.fixtures.PathFixture(tmpDir));
+    testCase.addTeardown(@() closeIfLoaded("DemoPlant"));
+    testCase.addTeardown(@() closeIfLoaded("DemoController"));
+    testCase.addTeardown(@() removeTempFolder(tmpDir));
+end
+
+function closeIfLoaded(modelName)
+    if bdIsLoaded(char(modelName))
+        close_system(char(modelName), 0);
+    end
+end
+
+function removeTempFolder(tmpDir)
+    if ismember(char(tmpDir), strsplit(path, pathsep))
+        rmpath(char(tmpDir));
+    end
+    if isfolder(tmpDir)
+        rmdir(tmpDir, "s");
     end
 end

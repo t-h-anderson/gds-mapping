@@ -10,6 +10,8 @@ classdef tMappingResult < matlab.unittest.TestCase
             testCase.verifyEqual(r.IecPath.Path, "");
             testCase.verifyEqual(r.PlantPath, "");
             testCase.verifyEqual(r.RuleSource, "");
+            testCase.verifyEqual(r.RuleOrigin, "");
+            testCase.verifyEqual(r.Warning, "");
         end
 
         function tMappedCarriesPathAndSource(testCase)
@@ -19,10 +21,12 @@ classdef tMappingResult < matlab.unittest.TestCase
                 IecPath = path, ...
                 PlantPath = "Plant/Out1.voltage", ...
                 RuleSource = "regex: ^ref(\d+)/in(\d+)$", ...
+                RuleOrigin = "override.csv:2", ...
                 Status = eLumina.gds.map.ResultStatus.Mapped);
             testCase.verifyEqual(r.IecPath.Path, "esca_1in2");
             testCase.verifyEqual(r.PlantPath, "Plant/Out1.voltage");
             testCase.verifyEqual(r.RuleSource, "regex: ^ref(\d+)/in(\d+)$");
+            testCase.verifyEqual(r.RuleOrigin, "override.csv:2");
             testCase.verifyEqual(r.Status, eLumina.gds.map.ResultStatus.Mapped);
         end
 
@@ -33,6 +37,15 @@ classdef tMappingResult < matlab.unittest.TestCase
             testCase.verifyEqual(r.Status, eLumina.gds.map.ResultStatus.Internal);
             testCase.verifyEqual(r.PlantPath, "");
             testCase.verifyEqual(r.IecPath.Path, "");
+        end
+
+        function tBrokenCarriesWarning(testCase)
+            sig = eLumina.gds.extract.SimulinkSignal("ctrl1/bad");
+            r = eLumina.gds.map.MappingResult(sig, ...
+                Status = eLumina.gds.map.ResultStatus.Broken, ...
+                Warning = "missing projectSuffix");
+            testCase.verifyEqual(r.Status, eLumina.gds.map.ResultStatus.Broken);
+            testCase.verifyEqual(r.Warning, "missing projectSuffix");
         end
     end
 end

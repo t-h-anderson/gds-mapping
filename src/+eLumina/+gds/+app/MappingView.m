@@ -2,12 +2,13 @@ classdef MappingView < handle
     %MAPPINGVIEW uifigure-based view bound to a MappingSession.
     %
     %   Widgets:
-    %     - Top buttons: Load Model, Load Rules, Export Results
-    %     - Results table (Signal | IEC Path | Status | Rule)
+    %     - Top buttons: Load Model, Load Override, Load Base, Load Config,
+    %       Export Results
+    %     - Results table (Signal | IEC Path | Status | Rule | Source)
     %     - Test panel: type a path, see matched rule + resolved IEC path
-    %     - Rules editor: list of rules + Add/Edit/Remove/Move/Save buttons
+    %     - Rules editor: merged override/base list; only override rows are editable
     %
-    %   Uses gwidgets.Table for both tables — sort/filter/group via
+    %   Uses gwidgets.Table for both tables -- sort/filter/group via
     %   right-click context menu. The results table also exposes the
     %   filter row (ShowRowFilter = true); the rules table doesn't,
     %   since order there is priority and the user controls it directly.
@@ -51,10 +52,10 @@ classdef MappingView < handle
         function build(obj)
             obj.Figure = uifigure( ...
                 Name = "GDS Mapping", ...
-                Position = [100 100 1000 700]);
+                Position = [100 100 1200 760]);
 
             main = uigridlayout(obj.Figure, [3 1], ...
-                RowHeight = {40, "1x", 240}, ColumnWidth = {"1x"});
+                RowHeight = {40, "1x", 260}, ColumnWidth = {"1x"});
 
             obj.buildTopBar(main, 1);
             obj.buildMiddle(main, 2);
@@ -62,33 +63,38 @@ classdef MappingView < handle
         end
 
         function buildTopBar(obj, parent, row)
-            % Translation pipeline: model in -> rules in -> results out.
-            top = uigridlayout(parent, [1 4], ...
-                ColumnWidth = {130, 120, 150, "1x"});
+            % Translation pipeline: model in -> layered rules in -> results out.
+            top = uigridlayout(parent, [1 6], ...
+                ColumnWidth = {110, 140, 130, 110, 150, "1x"});
             top.Layout.Row = row; top.Layout.Column = 1;
-            uibutton(top, Text = "Load Model…", ...
+            uibutton(top, Text = "Load Model...", ...
                 ButtonPushedFcn = @(~,~) obj.onLoadModel());
-            uibutton(top, Text = "Load Rules…", ...
+            uibutton(top, Text = "Load Override...", ...
                 ButtonPushedFcn = @(~,~) obj.onLoadRules());
-            uibutton(top, Text = "Export Results…", ...
+            uibutton(top, Text = "Load Base...", ...
+                ButtonPushedFcn = @(~,~) obj.onLoadBaseRules());
+            uibutton(top, Text = "Load Config...", ...
+                ButtonPushedFcn = @(~,~) obj.onLoadConfig());
+            uibutton(top, Text = "Export Results...", ...
                 ButtonPushedFcn = @(~,~) obj.onExportResults());
         end
 
         function buildMiddle(obj, parent, row)
-            mid = uigridlayout(parent, [1 2], ColumnWidth = {"3x", "1x"});
+            mid = uigridlayout(parent, [1 2], ColumnWidth = {"4x", "1x"});
             mid.Layout.Row = row; mid.Layout.Column = 1;
 
             obj.ResultsTable = gwidgets.Table( ...
                 Parent = mid, ...
                 Data = obj.emptyResultsTable(), ...
                 ColumnNames = ["Signal", "Plant Path", "IEC Path", "Status", ...
-                               "Rule", "IsOverride", "RuleIndex", "ShadowTooltip"], ...
+                               "Rule", "Source", "Warning", "IsOverride", ...
+                               "RuleIndex", "ShadowTooltip"], ...
                 HiddenColumnNames = ["IsOverride", "RuleIndex", "ShadowTooltip"], ...
                 SelectionType = "row", ...
                 Multiselect = "on", ...
                 ShowRowFilter = true, ...
                 HasToggleFilter = true, ...
-                HasChangeGroupingVariable=true, ...
+                HasChangeGroupingVariable = true, ...
                 CellSelectionCallback = @(~,~) obj.onResultSelected());
             obj.ResultsTable.Layout.Row = 1;
             obj.ResultsTable.Layout.Column = 1;
@@ -106,13 +112,13 @@ classdef MappingView < handle
                 Style = shadowTooltipStyle);
 
             test = uigridlayout(mid, [5 1], ...
-                RowHeight = {22, 30, 22, 22, "1x"}, ColumnWidth = {"1x"});
+                RowHeight = {22, 30, 30, 40, "1x"}, ColumnWidth = {"1x"});
             test.Layout.Row = 1; test.Layout.Column = 2;
             uilabel(test, Text = "Test signal path:");
             obj.TestInput = uieditfield(test, "text", ...
                 ValueChangedFcn = @(src,~) obj.onTestSignalChanged(src.Value));
-            obj.TestMatchLabel = uilabel(test, Text = "Rule: —");
-            obj.TestPathLabel = uilabel(test, Text = "Path: —");
+            obj.TestMatchLabel = uilabel(test, Text = "Rule: --");
+            obj.TestPathLabel = uilabel(test, Text = "Path: --");
         end
 
         function buildRulesEditor(obj, parent, row)
@@ -121,7 +127,7 @@ classdef MappingView < handle
             grp.Layout.Row = row; grp.Layout.Column = 1;
 
             btns = uigridlayout(grp, [1 8], ...
-                ColumnWidth = {140, 140, 130, 130, 60, 60, 110, "1x"});
+                ColumnWidth = {140, 140, 130, 130, 70, 70, 110, "1x"});
             btns.Layout.Row = 1; btns.Layout.Column = 1;
             uibutton(btns, Text = "Add Regex Rule", ...
                 ButtonPushedFcn = @(~,~) obj.onAddRegex());
@@ -129,11 +135,11 @@ classdef MappingView < handle
                 ButtonPushedFcn = @(~,~) obj.onAddExplicit());
             uibutton(btns, Text = "Edit Selected", ...
                 ButtonPushedFcn = @(~,~) obj.onEditRule());
-            uibutton(btns, Text = "Remove Selected", ...
+            uibutton(btns, Text = "Remove Rule", ...
                 ButtonPushedFcn = @(~,~) obj.onRemoveRule());
-            uibutton(btns, Text = "↑ Up", ...
+            uibutton(btns, Text = "Up", ...
                 ButtonPushedFcn = @(~,~) obj.onMoveUp());
-            uibutton(btns, Text = "↓ Down", ...
+            uibutton(btns, Text = "Down", ...
                 ButtonPushedFcn = @(~,~) obj.onMoveDown());
             uibutton(btns, Text = "Save Rules", ...
                 ButtonPushedFcn = @(~,~) obj.onSaveRules());
@@ -141,12 +147,12 @@ classdef MappingView < handle
             obj.RulesTable = gwidgets.Table( ...
                 Parent = grp, ...
                 Data = obj.emptyRulesTable(), ...
-                ColumnNames = ["Kind", "Pattern / Path", ...
-                               "Template / Target", "Notes"], ...
+                ColumnNames = ["Layer", "Source", "Kind", "Pattern / Path", ...
+                               "Template / Target", "Notes", "Warning"], ...
                 SelectionType = "row", ...
-                Multiselect = "on", ...
+                Multiselect = "off", ...
                 ShowRowFilter = false, ...
-                HasToggleFilter=true, ...
+                HasToggleFilter = true, ...
                 CellDoubleClickCallback = @(~,~) obj.onEditRule(), ...
                 CellSelectionCallback = @(~,~) obj.onRuleSelected());
             obj.RulesTable.Layout.Row = 2;
@@ -155,25 +161,31 @@ classdef MappingView < handle
 
         function refresh(obj)
             obj.ResultsTable.Data = obj.resultsToTable(obj.Session.Results);
-            obj.RulesTable.Data = obj.rulesToTable(obj.Session.Rules.Rules);
-            obj.applyOverrideStyles();
+            obj.RulesTable.Data = obj.rulesToTable( ...
+                obj.Session.Rules.Rules, obj.Session.RuleWarnings);
+            obj.applyResultStyles();
         end
 
-        function applyOverrideStyles(obj)
+        function applyResultStyles(obj)
             obj.ResultsTable.removeStyle();
             results = obj.Session.Results;
             if isempty(results)
                 return
             end
-            % Override rows in warm yellow. Explicit data-mode indices
-            % (gwidgets translates them through sort/filter); only added
-            % when there's at least one, since uitable.addStyle rejects
-            % an empty row index.
+
             overrideRows = find(arrayfun(@(r) r.IsOverride, results));
             if ~isempty(overrideRows)
                 overrideStyle = matlab.ui.style.Style( ...
                     BackgroundColor = [1, 0.93, 0.70]);
                 obj.ResultsTable.addStyle(overrideStyle, "row", overrideRows);
+            end
+
+            brokenRows = find(arrayfun(@(r) ...
+                r.Status == eLumina.gds.map.ResultStatus.Broken, results));
+            if ~isempty(brokenRows)
+                brokenStyle = matlab.ui.style.Style( ...
+                    BackgroundColor = [1.00, 0.86, 0.86]);
+                obj.ResultsTable.addStyle(brokenStyle, "row", brokenRows);
             end
         end
 
@@ -183,7 +195,7 @@ classdef MappingView < handle
             results = obj.Session.Results;
             sel = obj.RulesTable.Selection;
             obj.Syncing = true;
-            resetSync = onCleanup(@() obj.endSync()); %#ok<NASGU>
+            resetSync = onCleanup(@() obj.endSync());
             if isempty(sel) || isempty(results)
                 obj.ResultsTable.Selection = [];
                 return
@@ -199,14 +211,18 @@ classdef MappingView < handle
             results = obj.Session.Results;
             sel = obj.ResultsTable.Selection;
             obj.Syncing = true;
-            resetSync = onCleanup(@() obj.endSync()); %#ok<NASGU>
+            resetSync = onCleanup(@() obj.endSync());
             if isempty(sel) || isempty(results)
                 obj.RulesTable.Selection = [];
                 return
             end
             ruleIdx = unique([results(sel).RuleIndex]);
             ruleIdx = ruleIdx(ruleIdx > 0);
-            obj.RulesTable.Selection = ruleIdx;
+            if isscalar(ruleIdx)
+                obj.RulesTable.Selection = ruleIdx;
+            else
+                obj.RulesTable.Selection = [];
+            end
         end
 
         function endSync(obj)
@@ -223,15 +239,29 @@ classdef MappingView < handle
 
         function onLoadRules(obj)
             [file, folder] = uigetfile({'*.csv', 'CSV files (*.csv)'}, ...
-                'Load rules CSV');
+                'Load override rules CSV');
             if isequal(file, 0); return; end
             obj.Session.loadRules(string(fullfile(folder, file)));
+        end
+
+        function onLoadBaseRules(obj)
+            [file, folder] = uigetfile({'*.csv', 'CSV files (*.csv)'}, ...
+                'Load base rules CSV');
+            if isequal(file, 0); return; end
+            obj.Session.loadBaseRules(string(fullfile(folder, file)));
+        end
+
+        function onLoadConfig(obj)
+            [file, folder] = uigetfile({'*.json', 'JSON files (*.json)'}, ...
+                'Load project config JSON');
+            if isequal(file, 0); return; end
+            obj.Session.loadConfig(string(fullfile(folder, file)));
         end
 
         function onSaveRules(obj)
             if obj.Session.RulesPath == ""
                 [file, folder] = uiputfile({'*.csv', 'CSV files (*.csv)'}, ...
-                    'Save rules CSV');
+                    'Save override rules CSV');
                 if isequal(file, 0); return; end
                 obj.Session.saveRules(string(fullfile(folder, file)));
             else
@@ -261,17 +291,23 @@ classdef MappingView < handle
 
         function onTestSignalChanged(obj, val)
             if val == ""
-                obj.TestMatchLabel.Text = "Rule: —";
-                obj.TestPathLabel.Text = "Path: —";
+                obj.TestMatchLabel.Text = "Rule: --";
+                obj.TestPathLabel.Text = "Path: --";
                 return
             end
-            [matched, iecPath, ruleDisplay] = obj.Session.testSignal(string(val));
+            [matched, iecPath, ruleDisplay, ruleOrigin, warning, status] = ...
+                obj.Session.testSignal(string(val));
             if matched
-                obj.TestMatchLabel.Text = "Rule: " + ruleDisplay;
-                obj.TestPathLabel.Text = "Path: " + iecPath;
+                obj.TestMatchLabel.Text = "Rule: " + ruleDisplay + ...
+                    " @ " + ruleOrigin;
+                if status == eLumina.gds.map.ResultStatus.Broken
+                    obj.TestPathLabel.Text = "Path: (broken) " + warning;
+                else
+                    obj.TestPathLabel.Text = "Path: " + iecPath;
+                end
             else
                 obj.TestMatchLabel.Text = "Rule: (none)";
-                obj.TestPathLabel.Text = "Path: —";
+                obj.TestPathLabel.Text = "Path: --";
             end
         end
 
@@ -300,6 +336,7 @@ classdef MappingView < handle
         function onRemoveRule(obj)
             sel = obj.RulesTable.Selection;
             if isempty(sel); return; end
+            if ~obj.ensureEditableRuleSelection(sel(1)); return; end
             obj.Session.removeRule(sel(1));
         end
 
@@ -307,6 +344,8 @@ classdef MappingView < handle
             sel = obj.RulesTable.Selection;
             if isempty(sel); return; end
             idx = sel(1);
+            if ~obj.ensureEditableRuleSelection(idx); return; end
+
             rule = obj.Session.Rules.Rules(idx);
             if isa(rule, "eLumina.gds.rules.RegexRule")
                 answer = inputdlg( ...
@@ -336,6 +375,7 @@ classdef MappingView < handle
             sel = obj.RulesTable.Selection;
             if isempty(sel); return; end
             idx = sel(1);
+            if ~obj.ensureEditableRuleSelection(idx); return; end
             if idx <= 1; return; end
             obj.Session.moveRuleUp(idx);
             obj.RulesTable.Selection = idx - 1;
@@ -345,9 +385,21 @@ classdef MappingView < handle
             sel = obj.RulesTable.Selection;
             if isempty(sel); return; end
             idx = sel(1);
-            if idx >= numel(obj.Session.Rules.Rules); return; end
+            if ~obj.ensureEditableRuleSelection(idx); return; end
+            if idx >= numel(obj.Session.OverrideRules.Rules); return; end
             obj.Session.moveRuleDown(idx);
             obj.RulesTable.Selection = idx + 1;
+        end
+
+        function tf = ensureEditableRuleSelection(obj, idx)
+            tf = true;
+            if obj.Session.Rules.Rules(idx).isEditable()
+                return
+            end
+            tf = false;
+            uialert(obj.Figure, ...
+                "Base rules are read-only here. Edit the override rules instead.", ...
+                "Read-only Rule");
         end
     end
 
@@ -358,19 +410,24 @@ classdef MappingView < handle
             IecPath = strings(0,1);
             Status = strings(0,1);
             Rule = strings(0,1);
+            Source = strings(0,1);
+            Warning = strings(0,1);
             IsOverride = false(0,1);
             RuleIndex = zeros(0,1);
             ShadowTooltip = strings(0,1);
-            tbl = table(Signal, PlantPath, IecPath, Status, Rule, ...
-                IsOverride, RuleIndex, ShadowTooltip);
+            tbl = table(Signal, PlantPath, IecPath, Status, Rule, Source, ...
+                Warning, IsOverride, RuleIndex, ShadowTooltip);
         end
 
         function tbl = emptyRulesTable()
+            Layer = strings(0,1);
+            Source = strings(0,1);
             Kind = strings(0,1);
             Pattern = strings(0,1);
             Template = strings(0,1);
             Notes = strings(0,1);
-            tbl = table(Kind, Pattern, Template, Notes);
+            Warning = strings(0,1);
+            tbl = table(Layer, Source, Kind, Pattern, Template, Notes, Warning);
         end
 
         function tbl = resultsToTable(results)
@@ -384,6 +441,8 @@ classdef MappingView < handle
             IecPath = strings(n,1);
             Status = strings(n,1);
             Rule = strings(n,1);
+            Source = strings(n,1);
+            Warning = strings(n,1);
             IsOverride = false(n,1);
             RuleIndex = zeros(n,1);
             ShadowTooltip = strings(n,1);
@@ -395,6 +454,8 @@ classdef MappingView < handle
                 Status(k) = string(r.Status);
                 Rule(k) = eLumina.gds.app.MappingSession.formatRuleDisplay( ...
                     r.RuleIndex, r.RuleSource, r.Shadows);
+                Source(k) = r.RuleOrigin;
+                Warning(k) = r.Warning;
                 IsOverride(k) = r.IsOverride;
                 RuleIndex(k) = r.RuleIndex;
                 if ~isempty(r.Shadows)
@@ -402,22 +463,27 @@ classdef MappingView < handle
                         strjoin(string(r.Shadows), ", ") + "]";
                 end
             end
-            tbl = table(Signal, PlantPath, IecPath, Status, Rule, ...
-                IsOverride, RuleIndex, ShadowTooltip);
+            tbl = table(Signal, PlantPath, IecPath, Status, Rule, Source, ...
+                Warning, IsOverride, RuleIndex, ShadowTooltip);
         end
 
-        function tbl = rulesToTable(rules)
+        function tbl = rulesToTable(rules, warnings)
             n = numel(rules);
             if n == 0
                 tbl = eLumina.gds.app.MappingView.emptyRulesTable();
                 return
             end
+            Layer = strings(n,1);
+            Source = strings(n,1);
             Kind = strings(n,1);
             Pattern = strings(n,1);
             Template = strings(n,1);
             Notes = strings(n,1);
+            Warning = strings(n,1);
             for k = 1:n
                 r = rules(k);
+                Layer(k) = r.RuleLayer;
+                Source(k) = r.provenance();
                 if isa(r, "eLumina.gds.rules.RegexRule")
                     Kind(k) = "regex";
                     Pattern(k) = r.Pattern;
@@ -428,8 +494,9 @@ classdef MappingView < handle
                     Template(k) = r.Target;
                 end
                 Notes(k) = r.Notes;
+                Warning(k) = warnings(k);
             end
-            tbl = table(Kind, Pattern, Template, Notes);
+            tbl = table(Layer, Source, Kind, Pattern, Template, Notes, Warning);
         end
     end
 end

@@ -25,6 +25,11 @@ function plantSig = traceToPlant(modelName, signal)
     % "Controllers/ctrl1/In1": the block is everything but the last
     % segment, the port is the last segment.
     parts = split(signal.InstancePath, "/");
+    if isscalar(parts)
+        plantSig = eLumina.gds.extract.PlantSignal( ...
+            signal.InstancePath, BusField = signal.BusField);
+        return
+    end
     blockPath = modelName + "/" + join(parts(1:end-1), "/");
     portName = parts(end);
 
@@ -83,10 +88,49 @@ function [plantSig, ok] = traceFwd(blockPath, portNum, field)
     if portNum == 0
         return
     end
-    [dstBlock, dstPort] = downstreamOf(blockPath, portNum);
-    if dstBlock == ""
+    [dstBlocks, dstPorts] = downstreamOf(blockPath, portNum);
+    if isempty(dstBlocks)
         return
     end
+    if isscalar(dstBlocks)
+        [plantSig, ok] = traceFwdToDestination(dstBlocks(1), dstPorts(1), field);
+        return
+    end
+    [plantSig, ok] = resolveForwardBranches(blockPath, dstBlocks, dstPorts, field);
+end
+
+function [plantSig, ok] = resolveForwardBranches(blockPath, dstBlocks, dstPorts, field)
+    plantSig = eLumina.gds.extract.PlantSignal.empty(1,0);
+    ok = false;
+    candidatePaths = string.empty(1,0);
+    candidate = eLumina.gds.extract.PlantSignal.empty(1,0);
+    for i = 1:numel(dstBlocks)
+        [nextSig, nextOk] = traceFwdToDestination(dstBlocks(i), dstPorts(i), field);
+        if ~nextOk
+            continue
+        end
+        nextPath = nextSig.fullPath();
+        if any(candidatePaths == nextPath)
+            continue
+        end
+        candidatePaths(end+1) = nextPath; %#ok<AGROW>
+        candidate = nextSig;
+    end
+    if isempty(candidatePaths)
+        return
+    end
+    if numel(candidatePaths) > 1
+        error("eLumina:gds:extract:ambiguousTrace", ...
+            "Signal '%s' fans out to multiple terminals: %s", ...
+            blockPath, strjoin(candidatePaths, ", "));
+    end
+    plantSig = candidate;
+    ok = true;
+end
+
+function [plantSig, ok] = traceFwdToDestination(dstBlock, dstPort, field)
+    plantSig = eLumina.gds.extract.PlantSignal.empty(1,0);
+    ok = false;
     bt = blockType(dstBlock);
     if bt == "Outport"
         % Subsystem boundary: hand off to the parent's external output.
@@ -145,8 +189,8 @@ function [srcBlock, srcPort] = upstreamOf(blockPath, portNum)
 end
 
 function [dstBlock, dstPort] = downstreamOf(blockPath, portNum)
-    dstBlock = "";
-    dstPort = 0;
+    dstBlock = string.empty(1,0);
+    dstPort = zeros(1,0);
     ph = get_param(char(blockPath), 'PortHandles');
     if portNum > numel(ph.Outport)
         return
@@ -160,8 +204,12 @@ function [dstBlock, dstPort] = downstreamOf(blockPath, portNum)
     if isempty(dp)
         return
     end
-    dstBlock = string(get_param(dp(1), 'Parent'));
-    dstPort = get_param(dp(1), 'PortNumber');
+    dstBlock = strings(1, numel(dp));
+    dstPort = zeros(1, numel(dp));
+    for i = 1:numel(dp)
+        dstBlock(i) = string(get_param(dp(i), 'Parent'));
+        dstPort(i) = get_param(dp(i), 'PortNumber');
+    end
 end
 
 function [plantSig, ok] = terminal(blockPath, portNum, portType, field)

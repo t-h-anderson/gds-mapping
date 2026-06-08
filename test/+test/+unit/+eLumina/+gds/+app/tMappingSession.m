@@ -6,8 +6,12 @@ classdef tMappingSession < matlab.unittest.TestCase
             s = eLumina.gds.app.MappingSession();
             testCase.verifyEmpty(s.Signals);
             testCase.verifyEmpty(s.Results);
+            testCase.verifyEmpty(s.OverrideRules.Rules);
+            testCase.verifyEmpty(s.BaseRules.Rules);
             testCase.verifyEmpty(s.Rules.Rules);
             testCase.verifyEqual(s.RulesPath, "");
+            testCase.verifyEqual(s.BaseRulesPath, "");
+            testCase.verifyEqual(s.ConfigPath, "");
             testCase.verifyEqual(s.ModelPath, "");
         end
 
@@ -24,6 +28,91 @@ classdef tMappingSession < matlab.unittest.TestCase
             testCase.verifyEqual(s.RulesPath, "rules.csv");
             testCase.verifyEqual(numel(s.Rules.Rules), 1);
             testCase.verifyEqual(s.Results(1).IecPath.Path, "b");
+        end
+
+        function tAutoDiscoversConfigForOverrideRules(testCase)
+            testCase.applyFixture(matlab.unittest.fixtures.WorkingFolderFixture);
+            writelines([ ...
+                "Kind,SimulinkPattern,IecPathTemplate,Notes"; ...
+                "regex,^sig_${projectSuffix}$,iec_${projectSuffix},"], ...
+                "override.csv");
+            writelines(jsonencode(struct("projectSuffix", "demo")), ...
+                "gds-config.json");
+
+            s = eLumina.gds.app.MappingSession();
+            s.setSignals(eLumina.gds.extract.SimulinkSignal("sig_demo"));
+            s.loadRules("override.csv");
+
+            testCase.verifyEqual(s.ConfigPath, "gds-config.json");
+            testCase.verifyEqual(s.Results(1).IecPath.Path, "iec_demo");
+            testCase.verifyEqual(s.RuleWarnings, "");
+        end
+
+        function tAutoDiscoversConfigForBaseRules(testCase)
+            testCase.applyFixture(matlab.unittest.fixtures.WorkingFolderFixture);
+            writelines([ ...
+                "Kind,SimulinkPattern,IecPathTemplate,Notes"; ...
+                "regex,^sig_${projectSuffix}$,iec_${projectSuffix},"], ...
+                "base.csv");
+            writelines(jsonencode(struct("projectSuffix", "demo")), ...
+                "gds-config.json");
+
+            s = eLumina.gds.app.MappingSession();
+            s.setSignals(eLumina.gds.extract.SimulinkSignal("sig_demo"));
+            s.loadBaseRules("base.csv");
+
+            testCase.verifyEqual(s.ConfigPath, "gds-config.json");
+            testCase.verifyEqual(s.Results(1).Status, ...
+                eLumina.gds.map.ResultStatus.Mapped);
+            testCase.verifyEqual(s.Results(1).IecPath.Path, "iec_demo");
+            testCase.verifyEqual(s.Results(1).Warning, "");
+        end
+
+        function tOverrideRulesPrecedeBaseRules(testCase)
+            testCase.applyFixture(matlab.unittest.fixtures.WorkingFolderFixture);
+            writelines([ ...
+                "Kind,SimulinkPattern,IecPathTemplate,Notes"; ...
+                "explicit,sig_demo,base,"], ...
+                "base.csv");
+            writelines([ ...
+                "Kind,SimulinkPattern,IecPathTemplate,Notes"; ...
+                "regex,^sig_${projectSuffix}$,override_${projectSuffix},"], ...
+                "override.csv");
+            writelines(jsonencode(struct("projectSuffix", "demo")), ...
+                "gds-config.json");
+
+            s = eLumina.gds.app.MappingSession();
+            s.setSignals(eLumina.gds.extract.SimulinkSignal("sig_demo"));
+            s.loadBaseRules("base.csv");
+            s.loadRules("override.csv");
+
+            testCase.verifyEqual(numel(s.OverrideRules.Rules), 1);
+            testCase.verifyEqual(numel(s.BaseRules.Rules), 1);
+            testCase.verifyEqual(s.Results(1).IecPath.Path, "override_demo");
+            testCase.verifyEqual(s.Results(1).RuleOrigin, "override.csv:2");
+        end
+
+        function tBrokenOverrideStopsFallback(testCase)
+            testCase.applyFixture(matlab.unittest.fixtures.WorkingFolderFixture);
+            writelines([ ...
+                "Kind,SimulinkPattern,IecPathTemplate,Notes"; ...
+                "explicit,foo,fallback,"], ...
+                "base.csv");
+            writelines([ ...
+                "Kind,SimulinkPattern,IecPathTemplate,Notes"; ...
+                "explicit,foo,iec_${projectSuffix},"], ...
+                "override.csv");
+
+            s = eLumina.gds.app.MappingSession();
+            s.setSignals(eLumina.gds.extract.SimulinkSignal("foo"));
+            s.loadBaseRules("base.csv");
+            s.loadRules("override.csv");
+
+            testCase.verifyEqual(s.Results(1).Status, ...
+                eLumina.gds.map.ResultStatus.Broken);
+            testCase.verifyEqual(s.Results(1).IecPath.Path, "");
+            testCase.verifySubstring(s.Results(1).Warning, "projectSuffix");
+            testCase.verifyEqual(s.Results(1).RuleOrigin, "override.csv:2");
         end
 
         function tChangedEventFiresOnSignalUpdate(testCase)
@@ -67,6 +156,21 @@ classdef tMappingSession < matlab.unittest.TestCase
                 "[1] explicit: foo (shadows [2])");
         end
 
+        function tTestSignalReturnsBrokenStatusAndOrigin(testCase)
+            s = eLumina.gds.app.MappingSession();
+            s.addRule(eLumina.gds.rules.ExplicitRule( ...
+                Path = "foo", Target = "override_${projectSuffix}"));
+
+            [matched, iecPath, ruleDisplay, ruleOrigin, warning, status] = ...
+                s.testSignal("foo");
+            testCase.verifyTrue(matched);
+            testCase.verifyEqual(iecPath, "");
+            testCase.verifyEqual(ruleDisplay, "[1] explicit: foo");
+            testCase.verifyEqual(ruleOrigin, "override");
+            testCase.verifyEqual(status, eLumina.gds.map.ResultStatus.Broken);
+            testCase.verifySubstring(warning, "projectSuffix");
+        end
+
         function tTestSignalDoesNotMutate(testCase)
             s = eLumina.gds.app.MappingSession();
             s.addRule(eLumina.gds.rules.RegexRule( ...
@@ -87,6 +191,42 @@ classdef tMappingSession < matlab.unittest.TestCase
             s = eLumina.gds.app.MappingSession();
             testCase.verifyError(@() s.saveRules(), ...
                 "eLumina:gds:app:noRulesPath");
+        end
+
+        function tSaveRulesWritesOnlyOverrideRules(testCase)
+            testCase.applyFixture(matlab.unittest.fixtures.WorkingFolderFixture);
+            writelines([ ...
+                "Kind,SimulinkPattern,IecPathTemplate,Notes"; ...
+                "explicit,baseSig,base,"], ...
+                "base.csv");
+            writelines([ ...
+                "Kind,SimulinkPattern,IecPathTemplate,Notes"; ...
+                "explicit,overrideSig,override,"], ...
+                "override.csv");
+
+            s = eLumina.gds.app.MappingSession();
+            s.loadBaseRules("base.csv");
+            s.loadRules("override.csv");
+            s.saveRules("saved.csv");
+
+            rs = eLumina.gds.io.readRules("saved.csv");
+            testCase.verifyEqual(numel(rs.Rules), 1);
+            testCase.verifyEqual(rs.Rules(1).describe(), ...
+                "explicit: overrideSig");
+        end
+
+        function tEditingBaseRuleErrors(testCase)
+            testCase.applyFixture(matlab.unittest.fixtures.WorkingFolderFixture);
+            writelines([ ...
+                "Kind,SimulinkPattern,IecPathTemplate,Notes"; ...
+                "explicit,baseSig,base,"], ...
+                "base.csv");
+
+            s = eLumina.gds.app.MappingSession();
+            s.loadBaseRules("base.csv");
+
+            testCase.verifyError(@() s.removeRule(1), ...
+                "eLumina:gds:app:ruleReadOnly");
         end
 
         function tExportResultsWritesCsv(testCase)

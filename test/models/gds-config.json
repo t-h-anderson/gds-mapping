@@ -1,9 +1,10 @@
 {
-  "projectSuffix": "demo",
   "plantSuffix": "p",
   "paramSuffix": "ext",
   "measurementLn": "MMXU1",
   "breakerOutLn": "XCBR1",
   "breakerInLn": "XCBR2",
-  "hmiLn": "GGIO1"
+  "hmiLn": "GGIO1",
+  "overrideSignal": "a2",
+  "overrideTarget": "esca_special_override"
 }

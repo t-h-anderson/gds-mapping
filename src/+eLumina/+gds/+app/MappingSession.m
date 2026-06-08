@@ -10,30 +10,71 @@ classdef MappingSession < handle
     end
 
     properties (SetAccess = protected)
+        OverrideRules (1,1) eLumina.gds.rules.RuleSet
+        BaseRules (1,1) eLumina.gds.rules.RuleSet
         Rules (1,1) eLumina.gds.rules.RuleSet
+        RuleWarnings (1,:) string = string.empty(1,0)
         Signals (1,:) eLumina.gds.extract.SimulinkSignal = eLumina.gds.extract.SimulinkSignal.empty(1,0)
         Results (1,:) eLumina.gds.map.MappingResult = eLumina.gds.map.MappingResult.empty(1,0)
         ModelPath (1,1) string = ""
         RulesPath (1,1) string = ""
+        BaseRulesPath (1,1) string = ""
+        ConfigPath (1,1) string = ""
     end
 
     properties (Access = private)
         PlantPaths (1,:) string = string.empty
         IsInternal (1,:) logical = logical.empty
+        ConfigValues = struct()
+        HasExplicitConfig (1,1) logical = false
     end
 
     methods
         function obj = MappingSession()
+            obj.OverrideRules = eLumina.gds.rules.RuleSet();
+            obj.BaseRules = eLumina.gds.rules.RuleSet();
             obj.Rules = eLumina.gds.rules.RuleSet();
         end
 
-        function loadRules(obj, path)
+        function loadRules(obj, path, nvp)
+            arguments
+                obj
+                path (1,1) string {mustBeFile}
+                nvp.ConfigPath (1,1) string = ""
+            end
+            obj.RulesPath = path;
+            obj.OverrideRules = eLumina.gds.io.readRules(path, ...
+                RuleLayer = "override");
+            if nvp.ConfigPath ~= ""
+                obj.setConfigPath(nvp.ConfigPath, true);
+            elseif ~obj.HasExplicitConfig
+                obj.refreshAutoConfigFromRules();
+            end
+            obj.refreshRules();
+            obj.recompute();
+        end
+
+        function loadBaseRules(obj, path)
             arguments
                 obj
                 path (1,1) string {mustBeFile}
             end
-            obj.Rules = eLumina.gds.io.readRules(path);
-            obj.RulesPath = path;
+            obj.BaseRulesPath = path;
+            obj.BaseRules = eLumina.gds.io.readRules(path, RuleLayer = "base");
+            if ~obj.HasExplicitConfig
+                obj.refreshAutoConfigFromRules();
+            end
+            obj.refreshRules();
+            obj.recompute();
+        end
+
+        function loadConfig(obj, path)
+            arguments
+                obj
+                path (1,1) string {mustBeFile}
+            end
+            obj.setConfigPath(path, true);
+            obj.refreshRuleWarnings();
             obj.recompute();
         end
 
@@ -49,8 +90,15 @@ classdef MappingSession < handle
                 end
                 path = obj.RulesPath;
             end
-            eLumina.gds.io.writeRules(obj.Rules, path);
+            eLumina.gds.io.writeRules(obj.OverrideRules, path);
             obj.RulesPath = path;
+            obj.OverrideRules = eLumina.gds.io.readRules(path, ...
+                RuleLayer = "override");
+            if ~obj.HasExplicitConfig
+                obj.refreshAutoConfigFromRules();
+            end
+            obj.refreshRules();
+            obj.recompute();
         end
 
         function setSignals(obj, signals)
@@ -86,7 +134,8 @@ classdef MappingSession < handle
                 obj
                 rule (1,1) eLumina.gds.rules.MappingRule
             end
-            obj.Rules.add(rule);
+            obj.OverrideRules.add(obj.prepareOverrideRule(rule));
+            obj.refreshRules();
             obj.recompute();
         end
 
@@ -95,7 +144,9 @@ classdef MappingSession < handle
                 obj
                 idx (1,1) double {mustBePositive, mustBeInteger}
             end
-            obj.Rules.remove(idx);
+            idx = obj.overrideRuleIndex(idx);
+            obj.OverrideRules.remove(idx);
+            obj.refreshRules();
             obj.recompute();
         end
 
@@ -104,7 +155,9 @@ classdef MappingSession < handle
                 obj
                 idx (1,1) double {mustBePositive, mustBeInteger}
             end
-            obj.Rules.moveUp(idx);
+            idx = obj.overrideRuleIndex(idx);
+            obj.OverrideRules.moveUp(idx);
+            obj.refreshRules();
             obj.recompute();
         end
 
@@ -113,7 +166,9 @@ classdef MappingSession < handle
                 obj
                 idx (1,1) double {mustBePositive, mustBeInteger}
             end
-            obj.Rules.moveDown(idx);
+            idx = obj.overrideRuleIndex(idx);
+            obj.OverrideRules.moveDown(idx);
+            obj.refreshRules();
             obj.recompute();
         end
 
@@ -123,11 +178,13 @@ classdef MappingSession < handle
                 idx (1,1) double {mustBePositive, mustBeInteger}
                 rule (1,1) eLumina.gds.rules.MappingRule
             end
-            obj.Rules.replace(idx, rule);
+            idx = obj.overrideRuleIndex(idx);
+            obj.OverrideRules.replace(idx, obj.prepareOverrideRule(rule));
+            obj.refreshRules();
             obj.recompute();
         end
 
-        function [matched, iecPath, ruleDisplay] = testSignal(obj, pathStr)
+        function [matched, iecPath, ruleDisplay, ruleOrigin, warning, status] = testSignal(obj, pathStr)
             %TESTSIGNAL Try the current rules against a hypothetical path.
             %   Stateless: does not touch Signals or Results. ruleDisplay
             %   is the pre-formatted "[N] kind: pattern (shadows [...])"
@@ -137,14 +194,24 @@ classdef MappingSession < handle
                 pathStr (1,1) string
             end
             sig = eLumina.gds.extract.SimulinkSignal(pathStr);
-            [matched, path, ruleIdx, shadows] = obj.Rules.applyTo(sig);
+            [matched, path, ruleIdx, shadows, broken, warning] = obj.Rules.applyTo( ...
+                sig, Variables = obj.ConfigValues);
             iecPath = path.Path;
+            ruleOrigin = "";
             if matched
-                source = obj.Rules.Rules(ruleIdx).describe();
+                rule = obj.Rules.Rules(ruleIdx);
+                source = rule.describe();
                 ruleDisplay = eLumina.gds.app.MappingSession.formatRuleDisplay( ...
                     ruleIdx, source, shadows);
+                ruleOrigin = rule.provenance();
+                if broken
+                    status = eLumina.gds.map.ResultStatus.Broken;
+                else
+                    status = eLumina.gds.map.ResultStatus.Mapped;
+                end
             else
                 ruleDisplay = "";
+                status = eLumina.gds.map.ResultStatus.Unmapped;
             end
         end
 
@@ -160,8 +227,59 @@ classdef MappingSession < handle
     methods (Access = private)
         function recompute(obj)
             obj.Results = eLumina.gds.map.runMapping(obj.Signals, obj.Rules, ...
-                PlantPaths = obj.PlantPaths, IsInternal = obj.IsInternal);
+                PlantPaths = obj.PlantPaths, IsInternal = obj.IsInternal, ...
+                Variables = obj.ConfigValues);
             notify(obj, "Changed");
+        end
+
+        function refreshRules(obj)
+            obj.Rules = eLumina.gds.rules.RuleSet([ ...
+                obj.OverrideRules.Rules, ...
+                obj.BaseRules.Rules]);
+            obj.refreshRuleWarnings();
+        end
+
+        function refreshRuleWarnings(obj)
+            rules = obj.Rules.Rules;
+            n = numel(rules);
+            warnings = strings(1, n);
+            for k = 1:n
+                warnings(k) = rules(k).placeholderWarning(obj.ConfigValues);
+            end
+            obj.RuleWarnings = warnings;
+        end
+
+        function setConfigPath(obj, path, isExplicit)
+            arguments
+                obj
+                path (1,1) string
+                isExplicit (1,1) logical
+            end
+            obj.ConfigPath = path;
+            obj.HasExplicitConfig = isExplicit;
+            obj.ConfigValues = eLumina.gds.io.readConfig(path);
+        end
+
+        function refreshAutoConfigFromRules(obj)
+            configPath = eLumina.gds.io.discoverConfig([ ...
+                obj.RulesPath, ...
+                obj.BaseRulesPath]);
+            obj.setConfigPath(configPath, false);
+        end
+
+        function idx = overrideRuleIndex(obj, idx)
+            overrideCount = numel(obj.OverrideRules.Rules);
+            if idx > overrideCount
+                error("eLumina:gds:app:ruleReadOnly", ...
+                    "Base rules are read-only in the app; edit the override rules instead.");
+            end
+        end
+
+        function rule = prepareOverrideRule(obj, rule)
+            rule = rule.withMetadata( ...
+                SourcePath = obj.RulesPath, ...
+                SourceRow = 0, ...
+                RuleLayer = "override");
         end
     end
 

@@ -16,6 +16,7 @@ function results = runMapping(signals, ruleSet, nvp)
         ruleSet (1,1) eLumina.gds.rules.RuleSet
         nvp.PlantPaths (1,:) string = string.empty
         nvp.IsInternal (1,:) logical = logical.empty
+        nvp.Variables = struct()
     end
 
     n = numel(signals);
@@ -46,15 +47,18 @@ function results = runMapping(signals, ruleSet, nvp)
         end
         plantPath = plantPaths(k);
         matchSig = eLumina.gds.extract.SimulinkSignal(plantPath);
-        [matched, path, ruleIdx, shadows] = ruleSet.applyTo(matchSig);
+        [matched, path, ruleIdx, shadows, broken, warning] = ruleSet.applyTo( ...
+            matchSig, Variables = nvp.Variables);
         if matched
             rule = ruleSet.Rules(ruleIdx);
             results(k) = eLumina.gds.map.MappingResult(signals(k), ...
                 IecPath = path, ...
                 PlantPath = plantPath, ...
                 RuleSource = rule.describe(), ...
+                RuleOrigin = rule.provenance(), ...
                 RuleIndex = ruleIdx, ...
-                Status = eLumina.gds.map.ResultStatus.Mapped, ...
+                Status = ternaryStatus(broken), ...
+                Warning = warning, ...
                 IsOverride = ~isempty(shadows), ...
                 Shadows = shadows);
         else
@@ -62,5 +66,13 @@ function results = runMapping(signals, ruleSet, nvp)
                 PlantPath = plantPath, ...
                 Status = eLumina.gds.map.ResultStatus.Unmapped);
         end
+    end
+end
+
+function status = ternaryStatus(broken)
+    if broken
+        status = eLumina.gds.map.ResultStatus.Broken;
+    else
+        status = eLumina.gds.map.ResultStatus.Mapped;
     end
 end

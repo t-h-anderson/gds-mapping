@@ -63,7 +63,7 @@ classdef RuleSet < handle
             obj.Rules(idx) = rule;
         end
 
-        function [matched, path, ruleIdx, shadows] = applyTo(obj, signal)
+        function [matched, path, ruleIdx, shadows, broken, warning] = applyTo(obj, signal, nvp)
             %APPLYTO First-match-wins lookup. Returns the index of the
             %   firing rule (0 if none) and the indices of any later
             %   rules that would also have matched (i.e. were shadowed
@@ -71,13 +71,17 @@ classdef RuleSet < handle
             arguments
                 obj
                 signal (1,1) eLumina.gds.extract.SimulinkSignal
+                nvp.Variables = struct()
             end
             matched = false;
             path = eLumina.gds.iec.IecPath("");
             ruleIdx = 0;
             shadows = zeros(1,0);
+            broken = false;
+            warning = "";
             for k = 1:numel(obj.Rules)
-                [m, p] = obj.Rules(k).applyTo(signal);
+                [m, p, b, w] = obj.Rules(k).applyTo(signal, ...
+                    Variables = nvp.Variables);
                 if ~m
                     continue
                 end
@@ -85,6 +89,8 @@ classdef RuleSet < handle
                     matched = true;
                     path = p;
                     ruleIdx = k;
+                    broken = b;
+                    warning = w;
                 else
                     shadows(end+1) = k; %#ok<AGROW>
                 end

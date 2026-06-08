@@ -1,4 +1,4 @@
-function results = runFromModel(modelPath, rulesCsv, outputCsv)
+function results = runFromModel(modelPath, rulesCsv, outputCsv, nvp)
     %RUNFROMMODEL Headless end-to-end pipeline starting from a Simulink model.
     %
     %   results = eLumina.gds.runFromModel(modelPath, rulesCsv, outputCsv)
@@ -12,14 +12,19 @@ function results = runFromModel(modelPath, rulesCsv, outputCsv)
         modelPath (1,1) string {mustBeFile}
         rulesCsv (1,1) string {mustBeFile}
         outputCsv (1,1) string
+        nvp.BaseRulesCsv (1,1) string = ""
+        nvp.ConfigPath (1,1) string = ""
     end
 
     signals = eLumina.gds.extract.extractSignals(modelPath);
     [~, modelName] = fileparts(modelPath);
     [plantPaths, isInternal] = eLumina.gds.extract.tracePlantPaths( ...
         string(modelName), signals);
-    ruleSet = eLumina.gds.io.readRules(rulesCsv);
+    [ruleSet, variables] = eLumina.gds.io.loadRuleContext(rulesCsv, ...
+        BaseRulesCsv = nvp.BaseRulesCsv, ...
+        ConfigPath = nvp.ConfigPath);
     results = eLumina.gds.map.runMapping(signals, ruleSet, ...
-        PlantPaths = plantPaths, IsInternal = isInternal);
+        PlantPaths = plantPaths, IsInternal = isInternal, ...
+        Variables = variables);
     eLumina.gds.io.writeResults(results, outputCsv);
 end
