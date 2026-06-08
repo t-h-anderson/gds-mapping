@@ -64,6 +64,67 @@ classdef tRunFromModel < matlab.unittest.TestCase
             testCase.verifyEqual(height(tbl), 18);
             testCase.verifyTrue(ismember("PlantPath", ...
                 string(tbl.Properties.VariableNames)));
+            testCase.verifyTrue(ismember("RuleOrigin", ...
+                string(tbl.Properties.VariableNames)));
+            testCase.verifyTrue(ismember("Warning", ...
+                string(tbl.Properties.VariableNames)));
+        end
+
+        function tLayeredDemoFixtureUsesOverrideAndProjectVariables(testCase)
+            testCase.applyFixture(matlab.unittest.fixtures.WorkingFolderFixture);
+
+            fixtures = test.util.fixturesPath();
+            modelPath = fullfile(fixtures, "DemoPlant.slx");
+            overridePath = fullfile(fixtures, "demoOverrideRules.csv");
+            basePath = fullfile(fixtures, "demoBaseRules.csv");
+
+            results = eLumina.gds.runFromModel( ...
+                modelPath, overridePath, "out.csv", ...
+                BaseRulesCsv = basePath);
+
+            testCase.verifyEqual(numel(results), 18);
+
+            byPath = dictionary( ...
+                arrayfun(@(r) r.Signal.fullPath(), results), ...
+                1:numel(results));
+
+            measured = results(byPath("Controllers/ctrl1/In1.a"));
+            testCase.verifyEqual(measured.IecPath.Path, ...
+                "MMXU1.PhV.a_p.cVal.mag.f");
+            testCase.verifyEqual(measured.RuleOrigin, "demoBaseRules.csv:5");
+            testCase.verifyEqual(measured.Warning, "");
+
+            overridden = results(byPath("Controllers/ctrl1/In1.a2"));
+            testCase.verifyEqual(overridden.IecPath.Path, "esca_special_override");
+            testCase.verifyEqual(overridden.RuleOrigin, ...
+                "demoOverrideRules.csv:4");
+            testCase.verifyTrue(overridden.IsOverride);
+
+            param = results(byPath("Controllers/ctrl1/In2.p"));
+            testCase.verifyEqual(param.IecPath.Path, "GGIO1.p_ext.setMag.f");
+        end
+
+        function tSingleFileDemoFixtureAlsoUsesProjectVariables(testCase)
+            testCase.applyFixture(matlab.unittest.fixtures.WorkingFolderFixture);
+
+            fixtures = test.util.fixturesPath();
+            modelPath = fullfile(fixtures, "DemoPlant.slx");
+            rulesPath = fullfile(fixtures, "demoRules.csv");
+
+            results = eLumina.gds.runFromModel(modelPath, rulesPath, "out.csv");
+
+            byPath = dictionary( ...
+                arrayfun(@(r) r.Signal.fullPath(), results), ...
+                1:numel(results));
+
+            overridden = results(byPath("Controllers/ctrl1/In1.a2"));
+            testCase.verifyEqual(overridden.IecPath.Path, "esca_special_override");
+            testCase.verifyEqual(overridden.RuleOrigin, "demoRules.csv:5");
+
+            measured = results(byPath("Controllers/ctrl1/In1.a"));
+            testCase.verifyEqual(measured.IecPath.Path, ...
+                "MMXU1.PhV.a_p.cVal.mag.f");
+            testCase.verifyEqual(measured.RuleOrigin, "demoRules.csv:6");
         end
     end
 end

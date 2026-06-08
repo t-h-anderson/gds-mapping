@@ -1,4 +1,4 @@
-function ruleSet = readRules(csvPath)
+function ruleSet = readRules(csvPath, nvp)
     %READRULES Load a rules CSV into a RuleSet. Comments (#) are skipped.
     %
     %   Row order in the CSV determines priority: first row beats later
@@ -6,6 +6,8 @@ function ruleSet = readRules(csvPath)
 
     arguments
         csvPath (1,1) string {mustBeFile}
+        nvp.RuleLayer (1,1) string {mustBeMember(nvp.RuleLayer, ...
+            ["override", "base"])} = "override"
     end
 
     % Strip comment (#) and blank lines into a clean temp file before
@@ -16,13 +18,14 @@ function ruleSet = readRules(csvPath)
     trimmed = strip(lines);
     keep = trimmed ~= "" & ~startsWith(trimmed, "#");
     cleaned = lines(keep);
+    keptRows = find(keep);
     if isempty(cleaned)
         error("eLumina:gds:io:badRule", ...
             "CSV %s has no header row", csvPath);
     end
 
     tmpFile = string(tempname) + ".csv";
-    cleanupTmp = onCleanup(@() deleteIfExists(tmpFile)); %#ok<NASGU>
+    cleanupTmp = onCleanup(@() deleteIfExists(tmpFile));
     writelines(cleaned, tmpFile);
 
     % Force comma delimiter and a fixed header/data split. Auto-detection
@@ -51,24 +54,30 @@ function ruleSet = readRules(csvPath)
     end
 
     rules = eLumina.gds.rules.MappingRule.empty(1,0);
+    sourceRows = keptRows(2:end);
     for k = 1:height(tbl)
         kind = lower(strip(tbl.Kind(k)));
         switch kind
             case "explicit"
-                rules(end+1) = eLumina.gds.rules.ExplicitRule( ...
+                rule = eLumina.gds.rules.ExplicitRule( ...
                     Path = tbl.SimulinkPattern(k), ...
                     Target = tbl.IecPathTemplate(k), ...
-                    Notes = tbl.Notes(k)); %#ok<AGROW>
+                    Notes = tbl.Notes(k));
             case "regex"
-                rules(end+1) = eLumina.gds.rules.RegexRule( ...
+                rule = eLumina.gds.rules.RegexRule( ...
                     Pattern = tbl.SimulinkPattern(k), ...
                     Template = tbl.IecPathTemplate(k), ...
-                    Notes = tbl.Notes(k)); %#ok<AGROW>
+                    Notes = tbl.Notes(k));
             otherwise
                 error("eLumina:gds:io:badRule", ...
                     "Unknown rule kind '%s' at row %d of %s", ...
                     kind, k, csvPath);
         end
+        rule = rule.withMetadata( ...
+            SourcePath = csvPath, ...
+            SourceRow = sourceRows(k), ...
+            RuleLayer = nvp.RuleLayer);
+        rules(end+1) = rule; %#ok<AGROW>
     end
 
     ruleSet = eLumina.gds.rules.RuleSet(rules);

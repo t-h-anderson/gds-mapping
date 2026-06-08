@@ -115,5 +115,41 @@ classdef trunMapping < matlab.unittest.TestCase
             testCase.verifyEqual(results.RuleIndex, 0);
             testCase.verifyEqual(results.Status, eLumina.gds.map.ResultStatus.Unmapped);
         end
+
+        function tBrokenRuleBeatsLaterFallback(testCase)
+            brokenRule = eLumina.gds.rules.ExplicitRule( ...
+                Path = "ref1/in1", Target = "iec_${projectSuffix}");
+            fallbackRule = eLumina.gds.rules.ExplicitRule( ...
+                Path = "ref1/in1", Target = "fallback");
+            rs = eLumina.gds.rules.RuleSet([brokenRule, fallbackRule]);
+            sigs = eLumina.gds.extract.SimulinkSignal("ref1/in1");
+            results = eLumina.gds.map.runMapping(sigs, rs);
+
+            testCase.verifyEqual(results.Status, eLumina.gds.map.ResultStatus.Broken);
+            testCase.verifyEqual(results.IecPath.Path, "");
+            testCase.verifyEqual(results.RuleIndex, 1);
+            testCase.verifyTrue(results.IsOverride);
+            testCase.verifyEqual(results.Shadows, 2);
+            testCase.verifySubstring(results.Warning, "projectSuffix");
+        end
+
+        function tBrokenPatternRuleBeatsLaterFallback(testCase)
+            brokenRule = eLumina.gds.rules.RegexRule( ...
+                Pattern = "^ref_${projectSuffix}$", ...
+                Template = "iec_${projectSuffix}");
+            fallbackRule = eLumina.gds.rules.ExplicitRule( ...
+                Path = "ref_demo", Target = "fallback");
+            rs = eLumina.gds.rules.RuleSet([brokenRule, fallbackRule]);
+            sigs = eLumina.gds.extract.SimulinkSignal("ref_demo");
+            results = eLumina.gds.map.runMapping(sigs, rs);
+
+            testCase.verifyEqual(results.Status, ...
+                eLumina.gds.map.ResultStatus.Broken);
+            testCase.verifyEqual(results.IecPath.Path, "");
+            testCase.verifyEqual(results.RuleIndex, 1);
+            testCase.verifyTrue(results.IsOverride);
+            testCase.verifyEqual(results.Shadows, 2);
+            testCase.verifySubstring(results.Warning, "Pattern");
+        end
     end
 end

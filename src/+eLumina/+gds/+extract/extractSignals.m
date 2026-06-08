@@ -25,14 +25,14 @@ function signals = extractSignals(modelPath)
 
     if folder ~= "" && ~ismember(char(folder), strsplit(path, pathsep))
         addpath(char(folder));
-        cleanupPath = onCleanup(@() rmpath(char(folder))); %#ok<NASGU>
+        cleanupPath = onCleanup(@() rmpath(char(folder)));
     end
 
     if ~bdIsLoaded(char(modelName))
         load_system(char(modelPath));
     end
 
-    dd = openDataDictionary(modelName);
+    dd = openDataDictionary(modelName, folder);
 
     chunks = cell(1,0);
 
@@ -53,16 +53,32 @@ function signals = extractSignals(modelPath)
     signals = [chunks{:}];
 end
 
-function dd = openDataDictionary(modelName)
+function dd = openDataDictionary(modelName, modelFolder)
     ddName = string(get_param(char(modelName), 'DataDictionary'));
     if ddName == ""
         dd = Simulink.data.Dictionary.empty;
         return
     end
+    ddPath = resolveDictionaryPath(ddName, modelFolder);
     try
-        dd = Simulink.data.dictionary.open(char(ddName));
-    catch
-        dd = Simulink.data.Dictionary.empty;
+        dd = Simulink.data.dictionary.open(char(ddPath));
+    catch ME
+        error("eLumina:gds:extract:dataDictionaryOpenFailed", ...
+            "Unable to open data dictionary '%s' for model '%s': %s", ...
+            ddName, modelName, ME.message);
+    end
+end
+
+function ddPath = resolveDictionaryPath(ddName, modelFolder)
+    ddPath = ddName;
+    if isfile(ddPath)
+        return
+    end
+    if modelFolder ~= ""
+        candidate = fullfile(modelFolder, ddName);
+        if isfile(candidate)
+            ddPath = string(candidate);
+        end
     end
 end
 
@@ -87,16 +103,21 @@ function leaves = expandModelReferencePorts(refBlockPath, modelName, dd)
 end
 
 function leaves = expandPort(portPath, portType, busName, dd)
-    if busName == "" || isempty(dd)
+    if busName == ""
         leaves = eLumina.gds.extract.SimulinkSignal( ...
             portPath, PortType = portType);
         return
     end
+    if isempty(dd)
+        error("eLumina:gds:extract:busExpansionUnavailable", ...
+            "Cannot expand bus port '%s' because no data dictionary is available.", ...
+            portPath);
+    end
     fields = eLumina.gds.extract.enumerateBusFields(busName, dd);
     if isempty(fields)
-        leaves = eLumina.gds.extract.SimulinkSignal( ...
-            portPath, PortType = portType);
-        return
+        error("eLumina:gds:extract:busDefinitionNotFound", ...
+            "Cannot expand bus port '%s' because bus '%s' was not found.", ...
+            portPath, busName);
     end
     n = numel(fields);
     cells = cell(1, n);

@@ -1,8 +1,7 @@
 Kind,SimulinkPattern,IecPathTemplate,Notes
-# Flattened single-file demo for test/models/DemoPlant.slx.
-# For layered loading, use demoOverrideRules.csv before demoBaseRules.csv.
+# Base rules for test/models/DemoPlant.slx in plant space.
+# Load demoOverrideRules.csv ahead of this file for project-specific behavior.
 # Project variables come from gds-config.json in the same folder.
-explicit,Plant/pIn.${overrideSignal}_${plantSuffix},${overrideTarget},one-off override to show explicit beats regex
 regex,^Plant/pIn\.(\w+)_${plantSuffix}$,${measurementLn}.PhV.${1}_${plantSuffix}.cVal.mag.f,plant sensor measurements
 regex,^Plant/pOut\.(\w+)_${plantSuffix}$,${breakerOutLn}.Pos.${1}_${plantSuffix}.ctlVal,commands into plant output bus
 regex,^Plant/In1\.(\w+)_${plantSuffix}$,${breakerInLn}.Pos.${1}_${plantSuffix}.ctlVal,commands into plant input 1

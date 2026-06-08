@@ -1,7 +1,8 @@
 function writeResults(results, csvPath)
     %WRITERESULTS Persist MappingResult[] to a CSV consumable by ESCA.
     %
-    %   Columns: SimulinkPath, PlantPath, IecPath, Status, RuleSource.
+    %   Columns: SimulinkPath, PlantPath, IecPath, Status, RuleSource,
+    %   RuleOrigin, Warning.
     %   Final column layout will follow ESCA's import contract once
     %   that target is available; this is a stable interface ahead of
     %   that.
@@ -17,6 +18,8 @@ function writeResults(results, csvPath)
     iecPath = strings(n, 1);
     status = strings(n, 1);
     ruleSource = strings(n, 1);
+    ruleOrigin = strings(n, 1);
+    warning = strings(n, 1);
 
     for k = 1:n
         simulinkPath(k) = results(k).Signal.fullPath();
@@ -24,10 +27,13 @@ function writeResults(results, csvPath)
         iecPath(k) = results(k).IecPath.Path;
         status(k) = string(results(k).Status);
         ruleSource(k) = results(k).RuleSource;
+        ruleOrigin(k) = results(k).RuleOrigin;
+        warning(k) = results(k).Warning;
     end
 
     tbl = table(simulinkPath, plantPath, iecPath, status, ruleSource, ...
+        ruleOrigin, warning, ...
         'VariableNames', {'SimulinkPath', 'PlantPath', 'IecPath', ...
-                          'Status', 'RuleSource'});
+                          'Status', 'RuleSource', 'RuleOrigin', 'Warning'});
     writetable(tbl, csvPath);
 end

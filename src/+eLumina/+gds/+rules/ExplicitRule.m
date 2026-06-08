@@ -18,22 +18,56 @@ classdef ExplicitRule < eLumina.gds.rules.MappingRule
             obj.Notes = nvp.Notes;
         end
 
-        function [matched, path] = applyTo(obj, signal)
+        function [matched, path, broken, warning] = applyTo(obj, signal, nvp)
             arguments
                 obj
                 signal (1,1) eLumina.gds.extract.SimulinkSignal
+                nvp.Variables = struct()
             end
-            if signal.fullPath() == obj.Path
-                matched = true;
-                path = eLumina.gds.iec.IecPath(obj.Target);
-            else
+            signalPath = signal.fullPath();
+            [pathPattern, pathMissing] = obj.resolveNamedPlaceholders( ...
+                obj.Path, nvp.Variables);
+            [target, targetMissing] = obj.resolveNamedPlaceholders( ...
+                obj.Target, nvp.Variables);
+            pathWarning = obj.formatPlaceholderWarning("Path", pathMissing);
+            targetWarning = obj.formatPlaceholderWarning("IEC target", ...
+                targetMissing);
+
+            path = eLumina.gds.iec.IecPath("");
+            broken = false;
+            warning = "";
+            if ~isempty(pathMissing)
+                matched = obj.couldMatchLiteralPattern(obj.Path, pathMissing, ...
+                    signalPath, nvp.Variables);
+                if matched
+                    broken = true;
+                    warning = obj.combineWarnings([pathWarning, targetWarning]);
+                end
+                return
+            end
+            if signalPath ~= pathPattern
                 matched = false;
-                path = eLumina.gds.iec.IecPath("");
+                return
             end
+            matched = true;
+            if ~isempty(targetMissing)
+                broken = true;
+                warning = targetWarning;
+                return
+            end
+            path = eLumina.gds.iec.IecPath(target);
         end
 
         function s = describe(obj)
             s = "explicit: " + obj.Path;
+        end
+
+        function warning = placeholderWarning(obj, variables)
+            [~, pathMissing] = obj.resolveNamedPlaceholders(obj.Path, variables);
+            [~, targetMissing] = obj.resolveNamedPlaceholders(obj.Target, variables);
+            warning = obj.combineWarnings([ ...
+                obj.formatPlaceholderWarning("Path", pathMissing), ...
+                obj.formatPlaceholderWarning("IEC target", targetMissing)]);
         end
     end
 end

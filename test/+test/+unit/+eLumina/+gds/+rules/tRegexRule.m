@@ -37,5 +37,53 @@ classdef tRegexRule < matlab.unittest.TestCase
                 Pattern = "^foo$", Template = "bar");
             testCase.verifyEqual(rule.describe(), "regex: ^foo$");
         end
+
+        function tNamedPlaceholdersResolveInPatternAndTemplate(testCase)
+            rule = eLumina.gds.rules.RegexRule( ...
+                Pattern = "^mySignal_${projectSuffix}_(\d+)$", ...
+                Template = "iec.${projectSuffix}.${1}");
+            sig = eLumina.gds.extract.SimulinkSignal("mySignal_demo_7");
+            [matched, path, broken] = rule.applyTo(sig, ...
+                Variables = struct("projectSuffix", "demo"));
+            testCase.verifyTrue(matched);
+            testCase.verifyFalse(broken);
+            testCase.verifyEqual(path.Path, "iec.demo.7");
+        end
+
+        function tMissingTemplatePlaceholderMarksBroken(testCase)
+            rule = eLumina.gds.rules.RegexRule( ...
+                Pattern = "^foo$", Template = "bar_${projectSuffix}");
+            sig = eLumina.gds.extract.SimulinkSignal("foo");
+            [matched, path, broken, warning] = rule.applyTo(sig);
+            testCase.verifyTrue(matched);
+            testCase.verifyTrue(broken);
+            testCase.verifyEqual(path.Path, "");
+            testCase.verifySubstring(warning, "projectSuffix");
+        end
+
+        function tMissingPatternPlaceholderMarksBrokenWhenSignalCouldMatch(testCase)
+            rule = eLumina.gds.rules.RegexRule( ...
+                Pattern = "^foo_${projectSuffix}$", ...
+                Template = "bar_${projectSuffix}");
+            sig = eLumina.gds.extract.SimulinkSignal("foo_demo");
+            [matched, path, broken, warning] = rule.applyTo(sig);
+            testCase.verifyTrue(matched);
+            testCase.verifyTrue(broken);
+            testCase.verifyEqual(path.Path, "");
+            testCase.verifySubstring(warning, "Pattern");
+            testCase.verifySubstring(warning, "IEC template");
+        end
+
+        function tMissingPatternPlaceholderDoesNotBlockUnrelatedSignal(testCase)
+            rule = eLumina.gds.rules.RegexRule( ...
+                Pattern = "^foo_${projectSuffix}$", ...
+                Template = "bar_${projectSuffix}");
+            sig = eLumina.gds.extract.SimulinkSignal("other");
+            [matched, path, broken, warning] = rule.applyTo(sig);
+            testCase.verifyFalse(matched);
+            testCase.verifyFalse(broken);
+            testCase.verifyEqual(path.Path, "");
+            testCase.verifyEqual(warning, "");
+        end
     end
 end

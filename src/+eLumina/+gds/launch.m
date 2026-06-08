@@ -9,6 +9,8 @@ function view = launch(nvp)
     arguments
         nvp.ModelPath (1,1) string = ""
         nvp.RulesPath (1,1) string = ""
+        nvp.BaseRulesPath (1,1) string = ""
+        nvp.ConfigPath (1,1) string = ""
         nvp.Signals (1,:) string = string.empty(1,0)
     end
 
@@ -23,7 +25,13 @@ function view = launch(nvp)
     end
 
     if nvp.RulesPath ~= ""
-        session.loadRules(nvp.RulesPath);
+        session.loadRules(nvp.RulesPath, ConfigPath = nvp.ConfigPath);
+    elseif nvp.ConfigPath ~= ""
+        session.loadConfig(nvp.ConfigPath);
+    end
+
+    if nvp.BaseRulesPath ~= ""
+        session.loadBaseRules(nvp.BaseRulesPath);
     end
 
     view = eLumina.gds.app.MappingView(session);

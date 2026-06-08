@@ -25,5 +25,53 @@ classdef tExplicitRule < matlab.unittest.TestCase
                 Path = "ref2/in1", Target = "esca_x");
             testCase.verifyEqual(rule.describe(), "explicit: ref2/in1");
         end
+
+        function tNamedPlaceholdersResolveFromConfig(testCase)
+            rule = eLumina.gds.rules.ExplicitRule( ...
+                Path = "ref_${projectSuffix}", ...
+                Target = "iec_${projectSuffix}");
+            sig = eLumina.gds.extract.SimulinkSignal("ref_demo");
+            [matched, path, broken] = rule.applyTo(sig, ...
+                Variables = struct("projectSuffix", "demo"));
+            testCase.verifyTrue(matched);
+            testCase.verifyFalse(broken);
+            testCase.verifyEqual(path.Path, "iec_demo");
+        end
+
+        function tMissingTargetPlaceholderMarksBroken(testCase)
+            rule = eLumina.gds.rules.ExplicitRule( ...
+                Path = "ref2/in1", Target = "esca_${projectSuffix}");
+            sig = eLumina.gds.extract.SimulinkSignal("ref2/in1");
+            [matched, path, broken, warning] = rule.applyTo(sig);
+            testCase.verifyTrue(matched);
+            testCase.verifyTrue(broken);
+            testCase.verifyEqual(path.Path, "");
+            testCase.verifySubstring(warning, "projectSuffix");
+        end
+
+        function tMissingPathPlaceholderMarksBrokenWhenSignalCouldMatch(testCase)
+            rule = eLumina.gds.rules.ExplicitRule( ...
+                Path = "ref_${projectSuffix}", ...
+                Target = "iec_${projectSuffix}");
+            sig = eLumina.gds.extract.SimulinkSignal("ref_demo");
+            [matched, path, broken, warning] = rule.applyTo(sig);
+            testCase.verifyTrue(matched);
+            testCase.verifyTrue(broken);
+            testCase.verifyEqual(path.Path, "");
+            testCase.verifySubstring(warning, "Path");
+            testCase.verifySubstring(warning, "IEC target");
+        end
+
+        function tMissingPathPlaceholderDoesNotBlockUnrelatedSignal(testCase)
+            rule = eLumina.gds.rules.ExplicitRule( ...
+                Path = "ref_${projectSuffix}", ...
+                Target = "iec_${projectSuffix}");
+            sig = eLumina.gds.extract.SimulinkSignal("other");
+            [matched, path, broken, warning] = rule.applyTo(sig);
+            testCase.verifyFalse(matched);
+            testCase.verifyFalse(broken);
+            testCase.verifyEqual(path.Path, "");
+            testCase.verifyEqual(warning, "");
+        end
     end
 end

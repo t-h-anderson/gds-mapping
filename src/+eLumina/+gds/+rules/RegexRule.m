@@ -18,20 +18,50 @@ classdef RegexRule < eLumina.gds.rules.MappingRule
             obj.Notes = nvp.Notes;
         end
 
-        function [matched, path] = applyTo(obj, signal)
+        function [matched, path, broken, warning] = applyTo(obj, signal, nvp)
             arguments
                 obj
                 signal (1,1) eLumina.gds.extract.SimulinkSignal
+                nvp.Variables = struct()
             end
-            [startIdx, tokens] = regexp(signal.fullPath(), obj.Pattern, ...
+            signalPath = signal.fullPath();
+            [pattern, patternMissing] = obj.resolveNamedPlaceholders( ...
+                obj.Pattern, nvp.Variables, EscapeForRegex = true);
+            [template, templateMissing] = obj.resolveNamedPlaceholders( ...
+                obj.Template, nvp.Variables);
+            patternWarning = obj.formatPlaceholderWarning("Pattern", ...
+                patternMissing);
+            templateWarning = obj.formatPlaceholderWarning("IEC template", ...
+                templateMissing);
+
+            path = eLumina.gds.iec.IecPath("");
+            broken = false;
+            warning = "";
+            if ~isempty(patternMissing)
+                matched = obj.couldMatchRegexPattern(obj.Pattern, ...
+                    patternMissing, signalPath, nvp.Variables);
+                if matched
+                    broken = true;
+                    warning = obj.combineWarnings([ ...
+                        patternWarning, ...
+                        templateWarning]);
+                end
+                return
+            end
+
+            [startIdx, tokens] = regexp(signalPath, pattern, ...
                 'start', 'tokens', 'once');
             if isempty(startIdx)
                 matched = false;
-                path = eLumina.gds.iec.IecPath("");
                 return
             end
             matched = true;
-            result = obj.Template;
+            if ~isempty(templateMissing)
+                broken = true;
+                warning = templateWarning;
+                return
+            end
+            result = template;
             if ~isempty(tokens)
                 captures = string(tokens);
                 % High-to-low so "${10}" substitutes before "${1}".
@@ -44,6 +74,16 @@ classdef RegexRule < eLumina.gds.rules.MappingRule
 
         function s = describe(obj)
             s = "regex: " + obj.Pattern;
+        end
+
+        function warning = placeholderWarning(obj, variables)
+            [~, patternMissing] = obj.resolveNamedPlaceholders( ...
+                obj.Pattern, variables, EscapeForRegex = true);
+            [~, templateMissing] = obj.resolveNamedPlaceholders( ...
+                obj.Template, variables);
+            warning = obj.combineWarnings([ ...
+                obj.formatPlaceholderWarning("Pattern", patternMissing), ...
+                obj.formatPlaceholderWarning("IEC template", templateMissing)]);
         end
     end
 end

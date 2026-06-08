@@ -34,9 +34,11 @@ jobs:
             import matlab.unittest.plugins.XMLPlugin;
             import matlab.unittest.plugins.CodeCoveragePlugin;
             import matlab.unittest.plugins.codecoverage.CoberturaFormat;
-            suite = testsuite('test', 'IncludeSubpackages', true);
+            suite = [ ...
+                testsuite('test.unit.eLumina.gds', 'IncludingSubpackages', true), ...
+                testsuite('test.system.eLumina.gds', 'IncludingSubpackages', true)];
             fprintf('Discovered %d tests\n', numel(suite));
-            assert(~isempty(suite), 'No tests discovered — check namespace/path.');
+            assert(~isempty(suite), 'No tests discovered for the GDS package.');
             runner = matlab.unittest.TestRunner.withTextOutput;
             runner.addPlugin(XMLPlugin.producingJUnitFormat('test-results/results.xml'));
             runner.addPlugin(CodeCoveragePlugin.forFolder('src', ...
