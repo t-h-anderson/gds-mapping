@@ -11,19 +11,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Start virtual display
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y xvfb
+          Xvfb :99 -screen 0 1280x1024x24 &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v2
         with:
-          release: R2025a
+          release: R2025b
           cache: true
+          products: Simulink
 
       - name: Run tests
-        uses: matlab-actions/run-tests@v2
+        uses: matlab-actions/run-command@v2
         with:
-          source-folder: src
-          select-by-folder: test
-          test-results-junit: test-results/results.xml
-          code-coverage-cobertura: test-results/coverage.xml
+          command: |
+            addpath('src'); addpath('test'); addpath(genpath('extern'));
+            mkdir('test-results');
+            import matlab.unittest.plugins.XMLPlugin;
+            import matlab.unittest.plugins.CodeCoveragePlugin;
+            import matlab.unittest.plugins.codecoverage.CoberturaFormat;
+            suite = testsuite('test', 'IncludeSubpackages', true);
+            fprintf('Discovered %d tests\n', numel(suite));
+            assert(~isempty(suite), 'No tests discovered — check namespace/path.');
+            runner = matlab.unittest.TestRunner.withTextOutput;
+            runner.addPlugin(XMLPlugin.producingJUnitFormat('test-results/results.xml'));
+            runner.addPlugin(CodeCoveragePlugin.forFolder('src', ...
+                'IncludingSubfolders', true, ...
+                'Producing', CoberturaFormat('test-results/coverage.xml')));
+            results = runner.run(suite);
+            assertSuccess(results);
         env:
           MLM_LICENSE_TOKEN: ${{ secrets.MATLAB_LICENCE }}
 

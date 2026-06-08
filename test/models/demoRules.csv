@@ -1,0 +1,10 @@
+Kind,SimulinkPattern,IecPathTemplate,Notes
+# Demo rules for test/models/DemoPlant.slx — PLANT-SPACE.
+# Controller signals are traced through the translator MATLAB Function
+# blocks to their plant origin, and these rules match that plant path.
+# Order is priority — first match wins.
+explicit,Plant/pIn.a2_p,esca_special_override,one-off override to show explicit beats regex
+regex,^Plant/pIn\.(\w+)$,MMXU1.PhV.${1}.cVal.mag.f,plant sensor measurements
+regex,^Plant/pOut\.(\w+)$,XCBR1.Pos.${1}.ctlVal,commands into plant input 2
+regex,^Plant/In1\.(\w+)$,XCBR2.Pos.${1}.ctlVal,commands into plant input 1
+regex,^Inputs/Out1\.(\w+)$,GGIO1.${1}.setMag.f,HMI parameters

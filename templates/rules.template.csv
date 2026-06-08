@@ -1,8 +1,11 @@
-Kind,Priority,SimulinkPattern,IecPathTemplate,Notes
+Kind,SimulinkPattern,IecPathTemplate,Notes
+# Order is priority: first row beats later rows on the same signal.
+# Put overrides at the top, generic regexes below.
+#
 # Kind:            explicit | regex
-# Priority:        higher wins; explicit beats regex at equal priority
 # SimulinkPattern: literal path (explicit) or regex (regex)
 # IecPathTemplate: target path; regex captures available as ${1}, ${2}, ...
 # Notes:           free text
+#
 # example:
-# regex,10,^ref(\d+)/in(\d+)$,esca_in_${1}_${2},
+# regex,^ref(\d+)/in(\d+)$,esca_in_${1}_${2},

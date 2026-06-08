@@ -8,7 +8,7 @@ classdef IecPath
     methods
         function obj = IecPath(path)
             arguments
-                path (1,1) string
+                path (1,1) string = ""
             end
             obj.Path = path;
         end
