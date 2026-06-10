@@ -4,7 +4,7 @@ classdef tMappingSession < matlab.unittest.TestCase
 
     methods (TestMethodTeardown)
         function closeLoadedModels(testCase) %#ok<MANU>
-            for name = ["DemoPlant", "DemoController"]
+            for name = ["DemoPlant", "DemoController", "Subsystem"]
                 if bdIsLoaded(char(name))
                     close_system(char(name), 0);
                 end

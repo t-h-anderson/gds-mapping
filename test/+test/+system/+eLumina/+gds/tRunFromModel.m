@@ -4,7 +4,7 @@ classdef tRunFromModel < matlab.unittest.TestCase
 
     methods (TestMethodTeardown)
         function closeLoadedModels(testCase) %#ok<MANU>
-            for name = ["DemoPlant", "DemoController"]
+            for name = ["DemoPlant", "DemoController", "Subsystem"]
                 if bdIsLoaded(char(name))
                     close_system(char(name), 0);
                 end
@@ -19,10 +19,10 @@ classdef tRunFromModel < matlab.unittest.TestCase
             modelPath = fullfile(test.util.fixturesPath(), "DemoPlant.slx");
             writelines([ ...
                 "Kind,SimulinkPattern,IecPathTemplate,Notes"; ...
-                "explicit,Plant/pIn.a2_p,esca_override,override"; ...
-                "regex,^Plant/pIn\.(\w+)$,MMXU.${1},sensors"; ...
-                "regex,^Plant/pOut\.(\w+)$,XCBR_out.${1},"; ...
-                "regex,^Plant/In1\.(\w+)$,XCBR_in1.${1},"; ...
+                "explicit,fromPlant.a2_p,esca_override,override"; ...
+                "regex,^fromPlant\.(\w+)$,MMXU.${1},sensors"; ...
+                "regex,^pOut\.(\w+)$,XCBR_out.${1},"; ...
+                "regex,^pOut1\.(\w+)$,XCBR_in1.${1},"; ...
                 "regex,^Inputs/Out1\.(\w+)$,HMI.${1},params"], ...
                 "rules.csv");
 
@@ -36,27 +36,27 @@ classdef tRunFromModel < matlab.unittest.TestCase
                 1:numel(results));
 
             % Input leaf traces to a plant sensor and maps in plant space
-            r = results(byPath("Controllers/ctrl1/In1.a"));
-            testCase.verifyEqual(r.PlantPath, "Plant/pIn.a_p");
+            r = results(byPath("CtrlDsp1/In1.a"));
+            testCase.verifyEqual(r.PlantPath, "fromPlant.a_p");
             testCase.verifyEqual(r.IecPath.Path, "MMXU.a_p");
             testCase.verifyEqual(r.Status, eLumina.gds.map.ResultStatus.Mapped);
 
             % Both controllers read the same plant sensor -> same IEC path
-            r2 = results(byPath("Controllers/ctrl2/In1.a"));
+            r2 = results(byPath("CtrlDsp2/In1.a"));
             testCase.verifyEqual(r2.IecPath.Path, "MMXU.a_p");
 
             % Explicit override on the plant path shadows the regex
-            ov = results(byPath("Controllers/ctrl1/In1.a2"));
+            ov = results(byPath("CtrlDsp1/In1.a2"));
             testCase.verifyEqual(ov.IecPath.Path, "esca_override");
             testCase.verifyTrue(ov.IsOverride);
 
             % Output leaf traces forward to a plant input
-            o = results(byPath("Controllers/ctrl1/Out1.a"));
-            testCase.verifyEqual(o.PlantPath, "Plant/pOut.a_p");
+            o = results(byPath("CtrlDsp1/Out1.a"));
+            testCase.verifyEqual(o.PlantPath, "pOut.a_p");
             testCase.verifyEqual(o.IecPath.Path, "XCBR_out.a_p");
 
             % Parameter traces to the Inputs subsystem
-            p = results(byPath("Controllers/ctrl1/In2.p"));
+            p = results(byPath("CtrlDsp1/Inport.p"));
             testCase.verifyEqual(p.PlantPath, "Inputs/Out1.p_ext");
             testCase.verifyEqual(p.IecPath.Path, "HMI.p_ext");
 
@@ -88,19 +88,19 @@ classdef tRunFromModel < matlab.unittest.TestCase
                 arrayfun(@(r) r.Signal.fullPath(), results), ...
                 1:numel(results));
 
-            measured = results(byPath("Controllers/ctrl1/In1.a"));
+            measured = results(byPath("CtrlDsp1/In1.a"));
             testCase.verifyEqual(measured.IecPath.Path, ...
                 "MMXU1.PhV.a_p.cVal.mag.f");
             testCase.verifyEqual(measured.RuleOrigin, "demoBaseRules.csv:5");
             testCase.verifyEqual(measured.Warning, "");
 
-            overridden = results(byPath("Controllers/ctrl1/In1.a2"));
+            overridden = results(byPath("CtrlDsp1/In1.a2"));
             testCase.verifyEqual(overridden.IecPath.Path, "esca_special_override");
             testCase.verifyEqual(overridden.RuleOrigin, ...
                 "demoOverrideRules.csv:4");
             testCase.verifyTrue(overridden.IsOverride);
 
-            param = results(byPath("Controllers/ctrl1/In2.p"));
+            param = results(byPath("CtrlDsp1/Inport.p"));
             testCase.verifyEqual(param.IecPath.Path, "GGIO1.p_ext.setMag.f");
         end
 
@@ -117,11 +117,11 @@ classdef tRunFromModel < matlab.unittest.TestCase
                 arrayfun(@(r) r.Signal.fullPath(), results), ...
                 1:numel(results));
 
-            overridden = results(byPath("Controllers/ctrl1/In1.a2"));
+            overridden = results(byPath("CtrlDsp1/In1.a2"));
             testCase.verifyEqual(overridden.IecPath.Path, "esca_special_override");
             testCase.verifyEqual(overridden.RuleOrigin, "demoRules.csv:5");
 
-            measured = results(byPath("Controllers/ctrl1/In1.a"));
+            measured = results(byPath("CtrlDsp1/In1.a"));
             testCase.verifyEqual(measured.IecPath.Path, ...
                 "MMXU1.PhV.a_p.cVal.mag.f");
             testCase.verifyEqual(measured.RuleOrigin, "demoRules.csv:6");

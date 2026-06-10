@@ -3,14 +3,21 @@ function signals = extractSignals(modelPath)
     %
     %   signals = eLumina.gds.extract.extractSignals(modelPath)
     %
-    %   For each ModelReference block in the root system, every port is
+    %   For each controller-facing ModelReference block, every port is
     %   fanned out to one SimulinkSignal per bus leaf field (read from
     %   the model's data dictionary). Scalar ports emit a single signal
     %   with BusField = "".
     %
-    %   Root-level Inports / Outports of the model itself are also
-    %   emitted, port-level only (no bus expansion until we hit a model
-    %   that needs it).
+    %   Controller-facing references are selected by block-name prefix.
+    %   The default is case-insensitive "ctrl", and it can be overridden
+    %   by setting controllerModelRefPrefixes in gds-config.json next to
+    %   the model. Provide a comma-separated list for multiple prefixes.
+    %
+    %   Root-level Inports / Outports of the model itself are emitted only
+    %   when the model has no controller-facing ModelReference blocks. For
+    %   adapter-style models such as the DemoPlant fixture, this keeps
+    %   root plumbing and intermediate referenced models out of the signal
+    %   list that drives mapping.
     %
     %   Tracing through translator MATLAB Function blocks to plant-side
     %   origins is a separate concern handled by the Mapper layer.
@@ -33,24 +40,145 @@ function signals = extractSignals(modelPath)
     end
 
     dd = openDataDictionary(modelName, folder);
+    controllerPrefixes = discoverControllerModelRefPrefixes(modelPath);
 
     chunks = cell(1,0);
 
     % Model references at any depth (controllers may be tucked inside
-    % organisational subsystems). The block's path relative to the model
-    % becomes the signal prefix, so a nested "Ctrls/ctrl1" stays distinct
-    % from a root-level "ctrl1".
-    modelRefs = find_system(char(modelName), ...
-        'LookUnderMasks', 'all', 'BlockType', 'ModelReference');
+    % organisational subsystems). Prefer block-name prefix selection from
+    % config, falling back to excluding root-plumbing references when the
+    % model does not follow the naming convention.
+    modelRefs = string(find_system(char(modelName), ...
+        'LookUnderMasks', 'all', 'BlockType', 'ModelReference'));
+    modelRefs = selectSignalModelReferences(modelRefs, modelName, controllerPrefixes);
     for k = 1:numel(modelRefs)
         chunks{end+1} = expandModelReferencePorts( ...
-            string(modelRefs{k}), modelName, dd); %#ok<AGROW>
+            modelRefs(k), modelName, dd); %#ok<AGROW>
     end
 
-    chunks{end+1} = collectRootPorts(modelName, "Inport");
-    chunks{end+1} = collectRootPorts(modelName, "Outport");
+    if isempty(modelRefs)
+        chunks{end+1} = collectRootPorts(modelName, "Inport");
+        chunks{end+1} = collectRootPorts(modelName, "Outport");
+    end
 
     signals = [chunks{:}];
+end
+
+function modelRefs = selectSignalModelReferences(modelRefs, modelName, controllerPrefixes)
+    modelRefs = reshape(modelRefs, 1, []);
+    if isempty(modelRefs)
+        return
+    end
+
+    if ~isempty(controllerPrefixes)
+        matchesPrefix = false(size(modelRefs));
+        for k = 1:numel(modelRefs)
+            matchesPrefix(k) = hasControllerPrefix(modelRefs(k), controllerPrefixes);
+        end
+
+        filtered = modelRefs(matchesPrefix);
+        if ~isempty(filtered)
+            modelRefs = filtered;
+            return
+        end
+    end
+
+    touchesRoot = false(size(modelRefs));
+    for k = 1:numel(modelRefs)
+        touchesRoot(k) = isDirectlyConnectedToRootPort(modelRefs(k), modelName);
+    end
+
+    filtered = modelRefs(~touchesRoot);
+    if ~isempty(filtered)
+        modelRefs = filtered;
+    end
+end
+
+function tf = hasControllerPrefix(refBlockPath, prefixes)
+    blockName = string(get_param(char(refBlockPath), 'Name'));
+    tf = any(startsWith(lower(blockName), prefixes));
+end
+
+function tf = isDirectlyConnectedToRootPort(refBlockPath, modelName)
+    tf = false;
+    ph = get_param(char(refBlockPath), 'PortHandles');
+
+    inports = ph.Inport(ph.Inport ~= -1);
+    for k = 1:numel(inports)
+        line = get_param(inports(k), 'Line');
+        if line == -1
+            continue
+        end
+        sp = get_param(line, 'SrcPortHandle');
+        if sp == -1
+            continue
+        end
+        srcBlock = string(get_param(sp, 'Parent'));
+        if isRootPortBlock(srcBlock, modelName, "Inport")
+            tf = true;
+            return
+        end
+    end
+
+    outports = ph.Outport(ph.Outport ~= -1);
+    for k = 1:numel(outports)
+        line = get_param(outports(k), 'Line');
+        if line == -1
+            continue
+        end
+        dp = get_param(line, 'DstPortHandle');
+        dp = dp(dp ~= -1);
+        for j = 1:numel(dp)
+            dstBlock = string(get_param(dp(j), 'Parent'));
+            if isRootPortBlock(dstBlock, modelName, "Outport")
+                tf = true;
+                return
+            end
+        end
+    end
+end
+
+function tf = isRootPortBlock(blockPath, modelName, blockType)
+    tf = false;
+    if blockPath == ""
+        return
+    end
+    if string(get_param(char(blockPath), 'BlockType')) ~= blockType
+        return
+    end
+    tf = string(get_param(char(blockPath), 'Parent')) == modelName;
+end
+
+function prefixes = discoverControllerModelRefPrefixes(modelPath)
+    prefixes = "ctrl";
+
+    configPath = eLumina.gds.io.discoverConfig(string(modelPath));
+    if configPath == ""
+        return
+    end
+
+    cfg = eLumina.gds.io.readConfig(configPath);
+    fieldName = "";
+    for candidate = ["controllerModelRefPrefixes", "controllerModelRefPrefix"]
+        if isfield(cfg, char(candidate))
+            fieldName = candidate;
+            break
+        end
+    end
+    if fieldName == ""
+        return
+    end
+
+    prefixes = splitConfigList(string(cfg.(char(fieldName))));
+    if isempty(prefixes)
+        prefixes = "ctrl";
+    end
+end
+
+function items = splitConfigList(rawValue)
+    items = split(string(rawValue), ",");
+    items = lower(strip(items));
+    items = items(items ~= "");
 end
 
 function dd = openDataDictionary(modelName, modelFolder)

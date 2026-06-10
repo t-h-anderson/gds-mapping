@@ -2,7 +2,7 @@ Kind,SimulinkPattern,IecPathTemplate,Notes
 # Base rules for test/models/DemoPlant.slx in plant space.
 # Load demoOverrideRules.csv ahead of this file for project-specific behavior.
 # Project variables come from gds-config.json in the same folder.
-regex,^Plant/pIn\.(\w+)_${plantSuffix}$,${measurementLn}.PhV.${1}_${plantSuffix}.cVal.mag.f,plant sensor measurements
-regex,^Plant/pOut\.(\w+)_${plantSuffix}$,${breakerOutLn}.Pos.${1}_${plantSuffix}.ctlVal,commands into plant output bus
-regex,^Plant/In1\.(\w+)_${plantSuffix}$,${breakerInLn}.Pos.${1}_${plantSuffix}.ctlVal,commands into plant input 1
+regex,^fromPlant\.(\w+)_${plantSuffix}$,${measurementLn}.PhV.${1}_${plantSuffix}.cVal.mag.f,plant input measurements
+regex,^pOut\.(\w+)_${plantSuffix}$,${breakerOutLn}.Pos.${1}_${plantSuffix}.ctlVal,commands on first top-level output
+regex,^pOut1\.(\w+)_${plantSuffix}$,${breakerInLn}.Pos.${1}_${plantSuffix}.ctlVal,commands on second top-level output
 regex,^Inputs/Out1\.(\w+)_${paramSuffix}$,${hmiLn}.${1}_${paramSuffix}.setMag.f,HMI parameters

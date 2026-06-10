@@ -1,4 +1,4 @@
 Kind,SimulinkPattern,IecPathTemplate,Notes
 # Project-specific overrides for the DemoPlant fixture.
 # These rows are loaded before demoBaseRules.csv.
-explicit,Plant/pIn.${overrideSignal}_${plantSuffix},${overrideTarget},one-off override to show override beats base
+explicit,fromPlant.${overrideSignal}_${plantSuffix},${overrideTarget},one-off override to show override beats base

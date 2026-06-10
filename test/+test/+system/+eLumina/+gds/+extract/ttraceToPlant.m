@@ -1,8 +1,8 @@
 classdef ttraceToPlant < matlab.unittest.TestCase
     %TTRACETOPLANT Tests for eLumina.gds.extract.traceToPlant against the
-    %   DemoPlant fixture: controllers nested in a Controllers subsystem,
-    %   params via an Inputs subsystem, translation through MATLAB
-    %   Function blocks. Needs Simulink.
+    %   DemoPlant fixture: controller-facing ModelReference blocks at the
+    %   top level, plant translation via helper-backed MATLAB Function
+    %   blocks, and parameters fed through an Inputs subsystem.
 
     methods (TestClassSetup)
         function loadModel(testCase)
@@ -15,7 +15,7 @@ classdef ttraceToPlant < matlab.unittest.TestCase
             end
             testCase.addTeardown(@() closeModels());
             function closeModels()
-                for name = ["DemoPlant", "DemoController"]
+                for name = ["DemoPlant", "DemoController", "Subsystem"]
                     if bdIsLoaded(char(name))
                         close_system(char(name), 0);
                     end
@@ -27,23 +27,23 @@ classdef ttraceToPlant < matlab.unittest.TestCase
     methods (Test)
         function tInputTracesBackThroughControllersToPlant(testCase)
             sig = eLumina.gds.extract.SimulinkSignal( ...
-                "Controllers/ctrl1/In1", PortType = "Inport", BusField = "a");
+                "CtrlDsp1/In1", PortType = "Inport", BusField = "a");
             ps = eLumina.gds.extract.traceToPlant("DemoPlant", sig);
             testCase.verifyNotEmpty(ps);
-            testCase.verifyEqual(ps.fullPath(), "Plant/pIn.a_p");
+            testCase.verifyEqual(ps.fullPath(), "fromPlant.a_p");
         end
 
-        function tOutputTracesForwardToPlantInput(testCase)
+        function tOutputTracesForwardToTopLevelOutport(testCase)
             sig = eLumina.gds.extract.SimulinkSignal( ...
-                "Controllers/ctrl1/Out1", PortType = "Outport", BusField = "a");
+                "CtrlDsp1/Out1", PortType = "Outport", BusField = "a");
             ps = eLumina.gds.extract.traceToPlant("DemoPlant", sig);
             testCase.verifyNotEmpty(ps);
-            testCase.verifyEqual(ps.fullPath(), "Plant/pOut.a_p");
+            testCase.verifyEqual(ps.fullPath(), "pOut.a_p");
         end
 
         function tParameterTracesToInputsSubsystem(testCase)
             sig = eLumina.gds.extract.SimulinkSignal( ...
-                "Controllers/ctrl1/In2", PortType = "Inport", BusField = "p");
+                "CtrlDsp1/Inport", PortType = "Inport", BusField = "p");
             ps = eLumina.gds.extract.traceToPlant("DemoPlant", sig);
             testCase.verifyNotEmpty(ps);
             testCase.verifyEqual(ps.fullPath(), "Inputs/Out1.p_ext");
@@ -51,20 +51,20 @@ classdef ttraceToPlant < matlab.unittest.TestCase
 
         function tBothControllersShareTheSamePlantInput(testCase)
             s1 = eLumina.gds.extract.SimulinkSignal( ...
-                "Controllers/ctrl1/In1", PortType = "Inport", BusField = "a2");
+                "CtrlDsp1/In1", PortType = "Inport", BusField = "a2");
             s2 = eLumina.gds.extract.SimulinkSignal( ...
-                "Controllers/ctrl2/In1", PortType = "Inport", BusField = "a2");
+                "CtrlDsp2/In1", PortType = "Inport", BusField = "a2");
             p1 = eLumina.gds.extract.traceToPlant("DemoPlant", s1);
             p2 = eLumina.gds.extract.traceToPlant("DemoPlant", s2);
-            testCase.verifyEqual(p1.fullPath(), "Plant/pIn.a2_p");
-            testCase.verifyEqual(p2.fullPath(), "Plant/pIn.a2_p");
+            testCase.verifyEqual(p1.fullPath(), "fromPlant.a2_p");
+            testCase.verifyEqual(p2.fullPath(), "fromPlant.a2_p");
         end
 
-        function tCtrl2OutputTracesToPlantIn1(testCase)
+        function tCtrl2OutputTracesToSecondTopLevelOutport(testCase)
             sig = eLumina.gds.extract.SimulinkSignal( ...
-                "Controllers/ctrl2/Out1", PortType = "Outport", BusField = "a1");
+                "CtrlDsp2/Out1", PortType = "Outport", BusField = "a1");
             ps = eLumina.gds.extract.traceToPlant("DemoPlant", sig);
-            testCase.verifyEqual(ps.fullPath(), "Plant/In1.a1_p");
+            testCase.verifyEqual(ps.fullPath(), "pOut1.a1_p");
         end
 
         function tRootPortsTraceToThemselves(testCase)

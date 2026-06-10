@@ -35,9 +35,41 @@ classdef tparseMFBScript < matlab.unittest.TestCase
             testCase.verifyEqual(m("y"), "c");
         end
 
+        function tParsesSingleHelperWrapper(testCase)
+            tmpDir = string(tempname);
+            mkdir(tmpDir);
+            helperPath = fullfile(tmpDir, "mapToPlant.m");
+            writelines([ ...
+                "function out = mapToPlant(in)"; ...
+                "out.a = in.fromPlant.a_p;"; ...
+                "out.a1 = in.fromPlant.a1_p;"; ...
+                "end"], helperPath);
+
+            testCase.applyFixture(matlab.unittest.fixtures.PathFixture(tmpDir));
+            testCase.addTeardown(@() removeTempFolder(tmpDir));
+
+            script = join([ ...
+                "function out = fcn(in)"; ...
+                "out = mapToPlant(in);"; ...
+                "end"], newline);
+            m = eLumina.gds.extract.parseMFBScript(script);
+
+            testCase.verifyEqual(m("a"), "fromPlant.a_p");
+            testCase.verifyEqual(m("a1"), "fromPlant.a1_p");
+        end
+
         function tEmptyScriptYieldsEmptyMap(testCase)
             m = eLumina.gds.extract.parseMFBScript("");
             testCase.verifyEqual(numEntries(m), 0);
         end
+    end
+end
+
+function removeTempFolder(tmpDir)
+    if ismember(char(tmpDir), strsplit(path, pathsep))
+        rmpath(char(tmpDir));
+    end
+    if isfolder(tmpDir)
+        rmdir(tmpDir, "s");
     end
 end
