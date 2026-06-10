@@ -25,6 +25,7 @@ classdef MappingSession < handle
     properties (Access = private)
         PlantPaths (1,:) string = string.empty
         IsInternal (1,:) logical = logical.empty
+        LinkedSignalPaths (1,:) string = string.empty
         ConfigValues = struct()
         HasExplicitConfig (1,1) logical = false
     end
@@ -110,6 +111,7 @@ classdef MappingSession < handle
             obj.Signals = signals;
             obj.PlantPaths = string.empty;
             obj.IsInternal = logical.empty;
+            obj.LinkedSignalPaths = string.empty;
             obj.recompute();
         end
 
@@ -121,11 +123,12 @@ classdef MappingSession < handle
             obj.ModelPath = modelPath;
             signals = eLumina.gds.extract.extractSignals(modelPath);
             [~, modelName] = fileparts(modelPath);
-            [pp, ii] = eLumina.gds.extract.tracePlantPaths( ...
+            [pp, ii, links] = eLumina.gds.extract.tracePlantPaths( ...
                 string(modelName), signals);
             obj.Signals = signals;
             obj.PlantPaths = pp;
             obj.IsInternal = ii;
+            obj.LinkedSignalPaths = links;
             obj.recompute();
         end
 
@@ -228,6 +231,7 @@ classdef MappingSession < handle
         function recompute(obj)
             obj.Results = eLumina.gds.map.runMapping(obj.Signals, obj.Rules, ...
                 PlantPaths = obj.PlantPaths, IsInternal = obj.IsInternal, ...
+                LinkedSignalPaths = obj.LinkedSignalPaths, ...
                 Variables = obj.ConfigValues);
             notify(obj, "Changed");
         end

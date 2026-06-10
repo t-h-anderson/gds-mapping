@@ -97,6 +97,23 @@ classdef trunMapping < matlab.unittest.TestCase
             testCase.verifyEqual(results.IecPath.Path, "");
         end
 
+        function tInternalSignalCanUseTracedLinkedSignal(testCase)
+            rs = eLumina.gds.rules.RuleSet();
+            sig = eLumina.gds.extract.SimulinkSignal( ...
+                "Lane1/toOtherLane", BusField = "toCtrl1.a");
+
+            results = eLumina.gds.map.runMapping(sig, rs, ...
+                PlantPaths = "", IsInternal = true, ...
+                LinkedSignalPaths = "Lane2/fromOtherLane.toCtrl1.a");
+
+            testCase.verifyEqual(results.Status, ...
+                eLumina.gds.map.ResultStatus.SignalMapped);
+            testCase.verifyEqual(results.LinkedSignalPath, ...
+                "Lane2/fromOtherLane.toCtrl1.a");
+            testCase.verifyEqual(results.PlantPath, "");
+            testCase.verifyEqual(results.IecPath.Path, "");
+        end
+
         function tLengthMismatchErrors(testCase)
             rs = eLumina.gds.rules.RuleSet();
             sigs = [ ...

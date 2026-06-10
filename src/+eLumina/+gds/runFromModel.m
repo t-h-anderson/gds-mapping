@@ -5,8 +5,9 @@ function results = runFromModel(modelPath, rulesCsv, outputCsv, nvp)
     %
     %   Extracts controller bus-leaf signals, traces each to its
     %   plant-world origin through the translator MATLAB Function blocks,
-    %   matches the plant path against the rules, and writes the result
-    %   CSV. Signals with no plant equivalent are reported as Internal.
+    %   matches the plant path against IEC rules, and writes the result
+    %   CSV. Signals with no plant equivalent are checked for direct
+    %   Simulink signal links, otherwise reported as Internal.
 
     arguments
         modelPath (1,1) string {mustBeFile}
@@ -18,13 +19,14 @@ function results = runFromModel(modelPath, rulesCsv, outputCsv, nvp)
 
     signals = eLumina.gds.extract.extractSignals(modelPath);
     [~, modelName] = fileparts(modelPath);
-    [plantPaths, isInternal] = eLumina.gds.extract.tracePlantPaths( ...
+    [plantPaths, isInternal, linkedSignalPaths] = eLumina.gds.extract.tracePlantPaths( ...
         string(modelName), signals);
     [ruleSet, variables] = eLumina.gds.io.loadRuleContext(rulesCsv, ...
         BaseRulesCsv = nvp.BaseRulesCsv, ...
         ConfigPath = nvp.ConfigPath);
     results = eLumina.gds.map.runMapping(signals, ruleSet, ...
         PlantPaths = plantPaths, IsInternal = isInternal, ...
+        LinkedSignalPaths = linkedSignalPaths, ...
         Variables = variables);
     eLumina.gds.io.writeResults(results, outputCsv);
 end

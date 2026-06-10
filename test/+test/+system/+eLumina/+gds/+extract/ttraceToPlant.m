@@ -1,21 +1,21 @@
 classdef ttraceToPlant < matlab.unittest.TestCase
     %TTRACETOPLANT Tests for eLumina.gds.extract.traceToPlant against the
-    %   DemoPlant fixture: controller-facing ModelReference blocks at the
+    %   ControlLane fixture: controller-facing ModelReference blocks at the
     %   top level, plant translation via helper-backed MATLAB Function
     %   blocks, and parameters fed through an Inputs subsystem.
 
     methods (TestClassSetup)
         function loadModel(testCase)
-            modelPath = fullfile(test.util.fixturesPath(), "DemoPlant.slx");
+            modelPath = fullfile(test.util.fixturesPath(), "ControlLane.slx");
             folder = fileparts(modelPath);
             testCase.applyFixture( ...
                 matlab.unittest.fixtures.PathFixture(folder));
-            if ~bdIsLoaded("DemoPlant")
+            if ~bdIsLoaded("ControlLane")
                 load_system(modelPath);
             end
             testCase.addTeardown(@() closeModels());
             function closeModels()
-                for name = ["DemoPlant", "DemoController", "Subsystem"]
+                for name = ["ControlLane", "DemoPlant", "DemoController", "Subsystem"]
                     if bdIsLoaded(char(name))
                         close_system(char(name), 0);
                     end
@@ -28,7 +28,7 @@ classdef ttraceToPlant < matlab.unittest.TestCase
         function tInputTracesBackThroughControllersToPlant(testCase)
             sig = eLumina.gds.extract.SimulinkSignal( ...
                 "CtrlDsp1/In1", PortType = "Inport", BusField = "a");
-            ps = eLumina.gds.extract.traceToPlant("DemoPlant", sig);
+            ps = eLumina.gds.extract.traceToPlant("ControlLane", sig);
             testCase.verifyNotEmpty(ps);
             testCase.verifyEqual(ps.fullPath(), "fromPlant.a_p");
         end
@@ -36,17 +36,17 @@ classdef ttraceToPlant < matlab.unittest.TestCase
         function tOutputTracesForwardToTopLevelOutport(testCase)
             sig = eLumina.gds.extract.SimulinkSignal( ...
                 "CtrlDsp1/Out1", PortType = "Outport", BusField = "a");
-            ps = eLumina.gds.extract.traceToPlant("DemoPlant", sig);
+            ps = eLumina.gds.extract.traceToPlant("ControlLane", sig);
             testCase.verifyNotEmpty(ps);
-            testCase.verifyEqual(ps.fullPath(), "pOut.a_p");
+            testCase.verifyEqual(ps.fullPath(), "plantIn.pOut.a_p");
         end
 
         function tParameterTracesToInputsSubsystem(testCase)
             sig = eLumina.gds.extract.SimulinkSignal( ...
                 "CtrlDsp1/Inport", PortType = "Inport", BusField = "p");
-            ps = eLumina.gds.extract.traceToPlant("DemoPlant", sig);
+            ps = eLumina.gds.extract.traceToPlant("ControlLane", sig);
             testCase.verifyNotEmpty(ps);
-            testCase.verifyEqual(ps.fullPath(), "Inputs/Out1.p_ext");
+            testCase.verifyEqual(ps.fullPath(), "params.p_ext");
         end
 
         function tBothControllersShareTheSamePlantInput(testCase)
@@ -54,8 +54,8 @@ classdef ttraceToPlant < matlab.unittest.TestCase
                 "CtrlDsp1/In1", PortType = "Inport", BusField = "a2");
             s2 = eLumina.gds.extract.SimulinkSignal( ...
                 "CtrlDsp2/In1", PortType = "Inport", BusField = "a2");
-            p1 = eLumina.gds.extract.traceToPlant("DemoPlant", s1);
-            p2 = eLumina.gds.extract.traceToPlant("DemoPlant", s2);
+            p1 = eLumina.gds.extract.traceToPlant("ControlLane", s1);
+            p2 = eLumina.gds.extract.traceToPlant("ControlLane", s2);
             testCase.verifyEqual(p1.fullPath(), "fromPlant.a2_p");
             testCase.verifyEqual(p2.fullPath(), "fromPlant.a2_p");
         end
@@ -63,8 +63,8 @@ classdef ttraceToPlant < matlab.unittest.TestCase
         function tCtrl2OutputTracesToSecondTopLevelOutport(testCase)
             sig = eLumina.gds.extract.SimulinkSignal( ...
                 "CtrlDsp2/Out1", PortType = "Outport", BusField = "a1");
-            ps = eLumina.gds.extract.traceToPlant("DemoPlant", sig);
-            testCase.verifyEqual(ps.fullPath(), "pOut1.a1_p");
+            ps = eLumina.gds.extract.traceToPlant("ControlLane", sig);
+            testCase.verifyEqual(ps.fullPath(), "plantIn.pOut1.a1_p");
         end
 
         function tRootPortsTraceToThemselves(testCase)

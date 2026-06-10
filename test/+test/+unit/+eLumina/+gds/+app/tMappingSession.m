@@ -171,6 +171,26 @@ classdef tMappingSession < matlab.unittest.TestCase
             testCase.verifySubstring(warning, "projectSuffix");
         end
 
+        function tTestSignalReturnsLinkedSignalForSignalRules(testCase)
+            s = eLumina.gds.app.MappingSession();
+            s.addRule(eLumina.gds.rules.RegexRule( ...
+                Pattern = "^Lane1/toOtherLane\.(.+)$", ...
+                Template = "Lane2/fromOtherLane.${1}", ...
+                TargetKind = "signal"));
+
+            [matched, iecPath, ruleDisplay, ~, ~, status, linkedSignalPath] = ...
+                s.testSignal("Lane1/toOtherLane.toCtrl1.a");
+
+            testCase.verifyTrue(matched);
+            testCase.verifyEqual(iecPath, "");
+            testCase.verifyEqual(linkedSignalPath, ...
+                "Lane2/fromOtherLane.toCtrl1.a");
+            testCase.verifyEqual(ruleDisplay, ...
+                "[1] signal regex: ^Lane1/toOtherLane\.(.+)$");
+            testCase.verifyEqual(status, ...
+                eLumina.gds.map.ResultStatus.SignalMapped);
+        end
+
         function tTestSignalDoesNotMutate(testCase)
             s = eLumina.gds.app.MappingSession();
             s.addRule(eLumina.gds.rules.RegexRule( ...
@@ -240,6 +260,8 @@ classdef tMappingSession < matlab.unittest.TestCase
             tbl = readtable("out.csv", TextType = "string");
             testCase.verifyEqual(height(tbl), 1);
             testCase.verifyEqual(tbl.IecPath(1), "b");
+            testCase.verifyTrue(ismember("LinkedSignalPath", ...
+                string(tbl.Properties.VariableNames)));
         end
     end
 end

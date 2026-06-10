@@ -49,6 +49,7 @@ classdef (Abstract) MappingRule < matlab.mixin.Heterogeneous
         function warning = placeholderWarning(~, ~)
             warning = "";
         end
+
     end
 
     methods (Access = protected)

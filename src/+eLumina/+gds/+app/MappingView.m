@@ -2,9 +2,9 @@ classdef MappingView < handle
     %MAPPINGVIEW uifigure-based view bound to a MappingSession.
     %
     %   Widgets:
-    %     - Top buttons: Load Model, Load Override, Load Base, Load Config,
+    %     - Top buttons: Load Model, Load Base, Load Override, Load Config,
     %       Export Results
-    %     - Results table (Signal | IEC Path | Status | Rule | Source)
+    %     - Results table (Signal | IEC Path | Linked Signal | Status | Rule | Source)
     %     - Test panel: type a path, see matched rule + resolved IEC path
     %     - Rules editor: merged override/base list; only override rows are editable
     %
@@ -69,10 +69,10 @@ classdef MappingView < handle
             top.Layout.Row = row; top.Layout.Column = 1;
             uibutton(top, Text = "Load Model...", ...
                 ButtonPushedFcn = @(~,~) obj.onLoadModel());
-            uibutton(top, Text = "Load Override...", ...
-                ButtonPushedFcn = @(~,~) obj.onLoadRules());
             uibutton(top, Text = "Load Base...", ...
                 ButtonPushedFcn = @(~,~) obj.onLoadBaseRules());
+            uibutton(top, Text = "Load Override...", ...
+                ButtonPushedFcn = @(~,~) obj.onLoadRules());
             uibutton(top, Text = "Load Config...", ...
                 ButtonPushedFcn = @(~,~) obj.onLoadConfig());
             uibutton(top, Text = "Export Results...", ...
@@ -86,8 +86,9 @@ classdef MappingView < handle
             obj.ResultsTable = gwidgets.Table( ...
                 Parent = mid, ...
                 Data = obj.emptyResultsTable(), ...
-                ColumnNames = ["Signal", "Plant Path", "IEC Path", "Status", ...
-                               "Rule", "Source", "Warning", "IsOverride", ...
+                ColumnNames = ["Signal", "Plant Path", "IEC Path", ...
+                               "Linked Signal", "Status", "Rule", ...
+                               "Source", "Warning", "IsOverride", ...
                                "RuleIndex", "ShadowTooltip"], ...
                 HiddenColumnNames = ["IsOverride", "RuleIndex", "ShadowTooltip"], ...
                 SelectionType = "row", ...
@@ -408,6 +409,7 @@ classdef MappingView < handle
             Signal = strings(0,1);
             PlantPath = strings(0,1);
             IecPath = strings(0,1);
+            LinkedSignalPath = strings(0,1);
             Status = strings(0,1);
             Rule = strings(0,1);
             Source = strings(0,1);
@@ -415,8 +417,9 @@ classdef MappingView < handle
             IsOverride = false(0,1);
             RuleIndex = zeros(0,1);
             ShadowTooltip = strings(0,1);
-            tbl = table(Signal, PlantPath, IecPath, Status, Rule, Source, ...
-                Warning, IsOverride, RuleIndex, ShadowTooltip);
+            tbl = table(Signal, PlantPath, IecPath, LinkedSignalPath, ...
+                Status, Rule, Source, Warning, IsOverride, RuleIndex, ...
+                ShadowTooltip);
         end
 
         function tbl = emptyRulesTable()
@@ -439,6 +442,7 @@ classdef MappingView < handle
             Signal = strings(n,1);
             PlantPath = strings(n,1);
             IecPath = strings(n,1);
+            LinkedSignalPath = strings(n,1);
             Status = strings(n,1);
             Rule = strings(n,1);
             Source = strings(n,1);
@@ -451,6 +455,7 @@ classdef MappingView < handle
                 Signal(k) = r.Signal.fullPath();
                 PlantPath(k) = r.PlantPath;
                 IecPath(k) = r.IecPath.Path;
+                LinkedSignalPath(k) = r.LinkedSignalPath;
                 Status(k) = string(r.Status);
                 Rule(k) = eLumina.gds.app.MappingSession.formatRuleDisplay( ...
                     r.RuleIndex, r.RuleSource, r.Shadows);
@@ -463,8 +468,9 @@ classdef MappingView < handle
                         strjoin(string(r.Shadows), ", ") + "]";
                 end
             end
-            tbl = table(Signal, PlantPath, IecPath, Status, Rule, Source, ...
-                Warning, IsOverride, RuleIndex, ShadowTooltip);
+            tbl = table(Signal, PlantPath, IecPath, LinkedSignalPath, ...
+                Status, Rule, Source, Warning, IsOverride, RuleIndex, ...
+                ShadowTooltip);
         end
 
         function tbl = rulesToTable(rules, warnings)

@@ -6,7 +6,7 @@ Kind,SimulinkPattern,IecPathTemplate,Notes
 #
 # Kind:            explicit | regex
 # SimulinkPattern: literal path (explicit) or regex (regex)
-# IecPathTemplate: target path; may use config placeholders and regex captures
+# IecPathTemplate: IEC target path; may use config placeholders and regex captures
 # Notes:           free text
 #
 # example:

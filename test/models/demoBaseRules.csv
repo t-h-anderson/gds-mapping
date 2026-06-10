@@ -1,8 +1,14 @@
 Kind,SimulinkPattern,IecPathTemplate,Notes
-# Base rules for test/models/DemoPlant.slx in plant space.
+# Base rules for test/models/ControlLane.slx in plant space.
 # Load demoOverrideRules.csv ahead of this file for project-specific behavior.
 # Project variables come from gds-config.json in the same folder.
 regex,^fromPlant\.(\w+)_${plantSuffix}$,${measurementLn}.PhV.${1}_${plantSuffix}.cVal.mag.f,plant input measurements
-regex,^pOut\.(\w+)_${plantSuffix}$,${breakerOutLn}.Pos.${1}_${plantSuffix}.ctlVal,commands on first top-level output
-regex,^pOut1\.(\w+)_${plantSuffix}$,${breakerInLn}.Pos.${1}_${plantSuffix}.ctlVal,commands on second top-level output
-regex,^Inputs/Out1\.(\w+)_${paramSuffix}$,${hmiLn}.${1}_${paramSuffix}.setMag.f,HMI parameters
+regex,^plantIn\.pOut\.(\w+)_${plantSuffix}$,${breakerOutLn}.Pos.${1}_${plantSuffix}.ctlVal,commands on first lane plant input
+regex,^plantIn\.pOut1\.(\w+)_${plantSuffix}$,${breakerInLn}.Pos.${1}_${plantSuffix}.ctlVal,commands on second lane plant input
+regex,^params\.(\w+)_${paramSuffix}$,${hmiLn}.${1}_${paramSuffix}.setMag.f,HMI parameters
+regex,^Subsystem/fromPlant\.(\w+)_${plantSuffix}$,${measurementLn}.PhV.${1}_${plantSuffix}.cVal.mag.f,top-level plant input measurements
+regex,^Subsystem/In1\.lane1\.pOut\.(\w+)_${plantSuffix}$,${breakerOutLn}.Pos.${1}_${plantSuffix}.ctlVal,lane 1 first plant input bundle
+regex,^Subsystem/In1\.lane1\.pOut1\.(\w+)_${plantSuffix}$,${breakerInLn}.Pos.${1}_${plantSuffix}.ctlVal,lane 1 second plant input bundle
+regex,^Subsystem/In1\.lane2\.pOut\.(\w+)_${plantSuffix}$,${breakerOutLn}.Pos.${1}_${plantSuffix}.ctlVal,lane 2 first plant input bundle
+regex,^Subsystem/In1\.lane2\.pOut1\.(\w+)_${plantSuffix}$,${breakerInLn}.Pos.${1}_${plantSuffix}.ctlVal,lane 2 second plant input bundle
+regex,^Inputs/params\.(\w+)_${paramSuffix}$,${hmiLn}.${1}_${paramSuffix}.setMag.f,top-level HMI parameters

@@ -31,5 +31,22 @@ classdef twriteRules < matlab.unittest.TestCase
             rs = eLumina.gds.io.readRules("out.csv");
             testCase.verifyEmpty(rs.Rules);
         end
+
+        function tRoundTripPreservesSignalRuleKind(testCase)
+            testCase.applyFixture(matlab.unittest.fixtures.WorkingFolderFixture);
+
+            rs = eLumina.gds.rules.RuleSet( ...
+                eLumina.gds.rules.RegexRule( ...
+                    Pattern = "^Lane1/toOtherLane\.(.+)$", ...
+                    Template = "Lane2/fromOtherLane.${1}", ...
+                    TargetKind = "signal"));
+
+            eLumina.gds.io.writeRules(rs, "out.csv");
+            tbl = readtable("out.csv", TextType = "string");
+            rs2 = eLumina.gds.io.readRules("out.csv");
+
+            testCase.verifyEqual(tbl.Kind(1), "signalRegex");
+            testCase.verifyEqual(rs2.Rules(1).TargetKind, "signal");
+        end
     end
 end

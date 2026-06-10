@@ -1,10 +1,10 @@
 classdef tMappingSession < matlab.unittest.TestCase
     %TMAPPINGSESSION System tests for MappingSession against the
-    %   DemoPlant fixture (needs Simulink).
+    %   ControlLane fixture (needs Simulink).
 
     methods (TestMethodTeardown)
         function closeLoadedModels(testCase) %#ok<MANU>
-            for name = ["DemoPlant", "DemoController", "Subsystem"]
+            for name = ["ControlLane", "DemoPlant", "DemoController", "Subsystem"]
                 if bdIsLoaded(char(name))
                     close_system(char(name), 0);
                 end
@@ -15,7 +15,7 @@ classdef tMappingSession < matlab.unittest.TestCase
     methods (Test)
         function tLoadModelSetsModelPathAndExtractsSignals(testCase)
             s = eLumina.gds.app.MappingSession();
-            modelPath = fullfile(test.util.fixturesPath(), "DemoPlant.slx");
+            modelPath = fullfile(test.util.fixturesPath(), "ControlLane.slx");
 
             s.loadModel(modelPath);
 
