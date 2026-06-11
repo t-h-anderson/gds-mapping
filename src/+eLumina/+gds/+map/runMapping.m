@@ -58,12 +58,12 @@ function results = runMapping(signals, ruleSet, nvp)
         end
         plantPath = plantPaths(k);
         matchSig = eLumina.gds.extract.SimulinkSignal(plantPath);
-        [matched, path, ruleIdx, shadows, broken, warning] = ruleSet.applyTo( ...
+        [matched, path, ruleIdx, shadows, broken, warning, targetKind] = ruleSet.applyTo( ...
             matchSig, Variables = nvp.Variables);
         if matched
             rule = ruleSet.Rules(ruleIdx);
             results(k) = matchedResult(signals(k), path, rule, ruleIdx, ...
-                shadows, broken, warning, plantPath);
+                shadows, broken, warning, plantPath, targetKind);
         else
             results(k) = eLumina.gds.map.MappingResult(signals(k), ...
                 PlantPath = plantPath, ...
@@ -72,28 +72,28 @@ function results = runMapping(signals, ruleSet, nvp)
     end
 end
 
-function result = matchedResult(signal, path, rule, ruleIdx, shadows, broken, warning, plantPath)
+function result = matchedResult(signal, path, rule, ruleIdx, shadows, broken, warning, plantPath, targetKind)
+    linkedSignalPath = "";
     if broken
         iecPath = eLumina.gds.iec.IecPath("");
+        status = eLumina.gds.map.ResultStatus.Broken;
+    elseif targetKind == "signal"
+        iecPath = eLumina.gds.iec.IecPath("");
+        linkedSignalPath = path.Path;
+        status = eLumina.gds.map.ResultStatus.SignalMapped;
     else
         iecPath = path;
+        status = eLumina.gds.map.ResultStatus.Mapped;
     end
     result = eLumina.gds.map.MappingResult(signal, ...
         IecPath = iecPath, ...
         PlantPath = plantPath, ...
+        LinkedSignalPath = linkedSignalPath, ...
         RuleSource = rule.describe(), ...
         RuleOrigin = rule.provenance(), ...
         RuleIndex = ruleIdx, ...
-        Status = ternaryStatus(broken), ...
+        Status = status, ...
         Warning = warning, ...
         IsOverride = ~isempty(shadows), ...
         Shadows = shadows);
-end
-
-function status = ternaryStatus(broken)
-    if broken
-        status = eLumina.gds.map.ResultStatus.Broken;
-    else
-        status = eLumina.gds.map.ResultStatus.Mapped;
-    end
 end

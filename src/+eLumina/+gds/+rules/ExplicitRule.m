@@ -12,10 +12,12 @@ classdef ExplicitRule < eLumina.gds.rules.MappingRule
                 nvp.Path (1,1) string = ""
                 nvp.Target (1,1) string = ""
                 nvp.Notes (1,1) string = ""
+                nvp.TargetKind (1,1) string {mustBeMember(nvp.TargetKind, ["iec", "signal"])} = "iec"
             end
             obj.Path = nvp.Path;
             obj.Target = nvp.Target;
             obj.Notes = nvp.Notes;
+            obj.TargetKind = nvp.TargetKind;
         end
 
         function [matched, path, broken, warning] = applyTo(obj, signal, nvp)
@@ -30,7 +32,7 @@ classdef ExplicitRule < eLumina.gds.rules.MappingRule
             [target, targetMissing] = obj.resolveNamedPlaceholders( ...
                 obj.Target, nvp.Variables);
             pathWarning = obj.formatPlaceholderWarning("Path", pathMissing);
-            targetWarning = obj.formatPlaceholderWarning("IEC target", ...
+            targetWarning = obj.formatPlaceholderWarning(obj.targetLabel() + " target", ...
                 targetMissing);
 
             path = eLumina.gds.iec.IecPath("");
@@ -59,7 +61,19 @@ classdef ExplicitRule < eLumina.gds.rules.MappingRule
         end
 
         function s = describe(obj)
-            s = "explicit: " + obj.Path;
+            if obj.TargetKind == "signal"
+                s = "signal explicit: " + obj.Path;
+            else
+                s = "explicit: " + obj.Path;
+            end
+        end
+
+        function kind = csvKind(obj)
+            if obj.TargetKind == "signal"
+                kind = "signalExplicit";
+            else
+                kind = "explicit";
+            end
         end
 
         function warning = placeholderWarning(obj, variables)
@@ -67,7 +81,18 @@ classdef ExplicitRule < eLumina.gds.rules.MappingRule
             [~, targetMissing] = obj.resolveNamedPlaceholders(obj.Target, variables);
             warning = obj.combineWarnings([ ...
                 obj.formatPlaceholderWarning("Path", pathMissing), ...
-                obj.formatPlaceholderWarning("IEC target", targetMissing)]);
+                obj.formatPlaceholderWarning(obj.targetLabel() + " target", ...
+                    targetMissing)]);
+        end
+    end
+
+    methods (Access = private)
+        function label = targetLabel(obj)
+            if obj.TargetKind == "signal"
+                label = "Signal";
+            else
+                label = "IEC";
+            end
         end
     end
 end

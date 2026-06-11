@@ -10,6 +10,7 @@ classdef (Abstract) MappingRule < matlab.mixin.Heterogeneous
         SourcePath (1,1) string = ""
         SourceRow (1,1) double = 0
         RuleLayer (1,1) string = "override"
+        TargetKind (1,1) string {mustBeMember(TargetKind, ["iec", "signal"])} = "iec"
     end
 
     methods (Abstract)

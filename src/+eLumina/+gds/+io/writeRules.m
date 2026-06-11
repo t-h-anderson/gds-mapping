@@ -17,11 +17,11 @@ function writeRules(ruleSet, csvPath)
         r = rules(k);
         notes(k) = r.Notes;
         if isa(r, "eLumina.gds.rules.ExplicitRule")
-            kinds(k) = "explicit";
+            kinds(k) = r.csvKind();
             patterns(k) = r.Path;
             targets(k) = r.Target;
         elseif isa(r, "eLumina.gds.rules.RegexRule")
-            kinds(k) = "regex";
+            kinds(k) = r.csvKind();
             patterns(k) = r.Pattern;
             targets(k) = r.Template;
         else

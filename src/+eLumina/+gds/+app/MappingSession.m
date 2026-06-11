@@ -187,7 +187,8 @@ classdef MappingSession < handle
             obj.recompute();
         end
 
-        function [matched, iecPath, ruleDisplay, ruleOrigin, warning, status] = testSignal(obj, pathStr)
+        function [matched, iecPath, ruleDisplay, ruleOrigin, warning, status, ...
+                linkedSignalPath] = testSignal(obj, pathStr)
             %TESTSIGNAL Try the current rules against a hypothetical path.
             %   Stateless: does not touch Signals or Results. ruleDisplay
             %   is the pre-formatted "[N] kind: pattern (shadows [...])"
@@ -197,10 +198,11 @@ classdef MappingSession < handle
                 pathStr (1,1) string
             end
             sig = eLumina.gds.extract.SimulinkSignal(pathStr);
-            [matched, path, ruleIdx, shadows, broken, warning] = obj.Rules.applyTo( ...
+            [matched, path, ruleIdx, shadows, broken, warning, targetKind] = obj.Rules.applyTo( ...
                 sig, Variables = obj.ConfigValues);
             iecPath = path.Path;
             ruleOrigin = "";
+            linkedSignalPath = "";
             if matched
                 rule = obj.Rules.Rules(ruleIdx);
                 source = rule.describe();
@@ -208,7 +210,12 @@ classdef MappingSession < handle
                     ruleIdx, source, shadows);
                 ruleOrigin = rule.provenance();
                 if broken
+                    iecPath = "";
                     status = eLumina.gds.map.ResultStatus.Broken;
+                elseif targetKind == "signal"
+                    linkedSignalPath = path.Path;
+                    iecPath = "";
+                    status = eLumina.gds.map.ResultStatus.SignalMapped;
                 else
                     status = eLumina.gds.map.ResultStatus.Mapped;
                 end
