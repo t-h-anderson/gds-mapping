@@ -63,7 +63,7 @@ classdef RuleSet < handle
             obj.Rules(idx) = rule;
         end
 
-        function [matched, path, ruleIdx, shadows, broken, warning] = applyTo(obj, signal, nvp)
+        function [matched, path, ruleIdx, shadows, broken, warning, targetKind] = applyTo(obj, signal, nvp)
             %APPLYTO First-match-wins lookup. Returns the index of the
             %   firing rule (0 if none) and the indices of any later
             %   rules that would also have matched (i.e. were shadowed
@@ -79,6 +79,7 @@ classdef RuleSet < handle
             shadows = zeros(1,0);
             broken = false;
             warning = "";
+            targetKind = "iec";
             for k = 1:numel(obj.Rules)
                 [m, p, b, w] = obj.Rules(k).applyTo(signal, ...
                     Variables = nvp.Variables);
@@ -91,6 +92,7 @@ classdef RuleSet < handle
                     ruleIdx = k;
                     broken = b;
                     warning = w;
+                    targetKind = obj.Rules(k).TargetKind;
                 else
                     shadows(end+1) = k; %#ok<AGROW>
                 end

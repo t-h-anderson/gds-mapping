@@ -1,4 +1,5 @@
 {
+  "controllerModelRefPrefixes": "ctrl,lane",
   "plantSuffix": "p",
   "paramSuffix": "ext",
   "measurementLn": "MMXU1",

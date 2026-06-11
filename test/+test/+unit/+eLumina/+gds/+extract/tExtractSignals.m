@@ -1,10 +1,10 @@
 classdef tExtractSignals < matlab.unittest.TestCase
     %TEXTRACTSIGNALS Tests for eLumina.gds.extract.extractSignals against
-    %   the DemoPlant fixture (controller bus-leaves).
+    %   the ControlLane fixture (controller bus-leaves).
 
     methods (TestMethodTeardown)
         function closeLoadedModels(testCase) %#ok<MANU>
-            for name = ["DemoPlant", "DemoController"]
+            for name = ["ControlLane", "DemoPlant", "DemoController", "Subsystem"]
                 if bdIsLoaded(char(name))
                     close_system(char(name), 0);
                 end
@@ -14,23 +14,23 @@ classdef tExtractSignals < matlab.unittest.TestCase
 
     methods (Test)
         function tEmitsBusLeafSignalsPerModelRefPort(testCase)
-            modelPath = fullfile(test.util.fixturesPath(), "DemoPlant.slx");
+            modelPath = fullfile(test.util.fixturesPath(), "ControlLane.slx");
             signals = eLumina.gds.extract.extractSignals(modelPath);
 
             paths = arrayfun(@(s) s.fullPath(), signals);
             expected = [...
-                "Controllers/ctrl1/In1.a", "Controllers/ctrl1/In1.a1", "Controllers/ctrl1/In1.a2", ...
-                "Controllers/ctrl1/In2.p", "Controllers/ctrl1/In2.p1", "Controllers/ctrl1/In2.p2", ...
-                "Controllers/ctrl1/Out1.a", "Controllers/ctrl1/Out1.a1", "Controllers/ctrl1/Out1.a2", ...
-                "Controllers/ctrl2/In1.a", "Controllers/ctrl2/In1.a1", "Controllers/ctrl2/In1.a2", ...
-                "Controllers/ctrl2/In2.p", "Controllers/ctrl2/In2.p1", "Controllers/ctrl2/In2.p2", ...
-                "Controllers/ctrl2/Out1.a", "Controllers/ctrl2/Out1.a1", "Controllers/ctrl2/Out1.a2"];
+                "CtrlDsp1/In1.a", "CtrlDsp1/In1.a1", "CtrlDsp1/In1.a2", ...
+                "CtrlDsp1/Inport.p", "CtrlDsp1/Inport.p1", "CtrlDsp1/Inport.p2", ...
+                "CtrlDsp1/Out1.a", "CtrlDsp1/Out1.a1", "CtrlDsp1/Out1.a2", ...
+                "CtrlDsp2/In1.a", "CtrlDsp2/In1.a1", "CtrlDsp2/In1.a2", ...
+                "CtrlDsp2/Inport.p", "CtrlDsp2/Inport.p1", "CtrlDsp2/Inport.p2", ...
+                "CtrlDsp2/Out1.a", "CtrlDsp2/Out1.a1", "CtrlDsp2/Out1.a2"];
 
             testCase.verifyEqual(sort(paths), sort(expected));
         end
 
         function tDistinguishesInportFromOutport(testCase)
-            modelPath = fullfile(test.util.fixturesPath(), "DemoPlant.slx");
+            modelPath = fullfile(test.util.fixturesPath(), "ControlLane.slx");
             signals = eLumina.gds.extract.extractSignals(modelPath);
 
             byPath = dictionary( ...
@@ -38,27 +38,27 @@ classdef tExtractSignals < matlab.unittest.TestCase
                 1:numel(signals));
 
             testCase.verifyEqual( ...
-                signals(byPath("Controllers/ctrl1/In1.a")).PortType, "Inport");
+                signals(byPath("CtrlDsp1/In1.a")).PortType, "Inport");
             testCase.verifyEqual( ...
-                signals(byPath("Controllers/ctrl1/Out1.a")).PortType, "Outport");
+                signals(byPath("CtrlDsp1/Out1.a")).PortType, "Outport");
             testCase.verifyEqual( ...
-                signals(byPath("Controllers/ctrl2/In2.p")).PortType, "Inport");
+                signals(byPath("CtrlDsp2/Inport.p")).PortType, "Inport");
         end
 
         function tPopulatesBusField(testCase)
-            modelPath = fullfile(test.util.fixturesPath(), "DemoPlant.slx");
+            modelPath = fullfile(test.util.fixturesPath(), "ControlLane.slx");
             signals = eLumina.gds.extract.extractSignals(modelPath);
             byPath = dictionary( ...
                 arrayfun(@(s) s.fullPath(), signals), ...
                 1:numel(signals));
 
-            sig = signals(byPath("Controllers/ctrl1/In1.a1"));
-            testCase.verifyEqual(sig.InstancePath, "Controllers/ctrl1/In1");
+            sig = signals(byPath("CtrlDsp1/In1.a1"));
+            testCase.verifyEqual(sig.InstancePath, "CtrlDsp1/In1");
             testCase.verifyEqual(sig.BusField, "a1");
         end
 
         function tIsIdempotentWhenModelAlreadyLoaded(testCase)
-            modelPath = fullfile(test.util.fixturesPath(), "DemoPlant.slx");
+            modelPath = fullfile(test.util.fixturesPath(), "ControlLane.slx");
             load_system(char(modelPath));
             signals1 = eLumina.gds.extract.extractSignals(modelPath);
             signals2 = eLumina.gds.extract.extractSignals(modelPath);
@@ -67,33 +67,59 @@ classdef tExtractSignals < matlab.unittest.TestCase
 
         function tMissingDataDictionaryErrors(testCase)
             tmpDir = copyDemoFixtureToTemp(testCase);
-            modelPath = fullfile(tmpDir, "DemoPlant.slx");
+            modelPath = fullfile(tmpDir, "ControlLane.slx");
 
             load_system(char(modelPath));
-            set_param("DemoPlant", "DataDictionary", "MissingData.sldd");
-            save_system("DemoPlant");
-            close_system("DemoPlant", 0);
+            set_param("ControlLane", "DataDictionary", "MissingData.sldd");
+            save_system("ControlLane");
+            close_system("ControlLane", 0);
 
             testCase.verifyError( ...
                 @() eLumina.gds.extract.extractSignals(string(modelPath)), ...
                 "eLumina:gds:extract:dataDictionaryOpenFailed");
         end
+
+        function tControllerPrefixConfigOverridesDefaultSelection(testCase)
+            tmpDir = copyDemoFixtureToTemp(testCase);
+            writelines(jsonencode(struct( ...
+                "controllerModelRefPrefixes", "xgds")), ...
+                fullfile(tmpDir, "gds-config.json"));
+
+            signals = eLumina.gds.extract.extractSignals( ...
+                fullfile(tmpDir, "ControlLane.slx"));
+            paths = arrayfun(@(s) s.fullPath(), signals);
+
+            testCase.verifyNotEmpty(paths);
+            testCase.verifyTrue(all(startsWith(paths, "xGDSMapping/")));
+        end
     end
 end
 
 function tmpDir = copyDemoFixtureToTemp(testCase)
+    Simulink.data.dictionary.closeAll;
+
     srcDir = test.util.fixturesPath();
     tmpDir = string(tempname);
     mkdir(tmpDir);
 
+    copyfile(fullfile(srcDir, "ControlLane.slx"), fullfile(tmpDir, "ControlLane.slx"));
     copyfile(fullfile(srcDir, "DemoPlant.slx"), fullfile(tmpDir, "DemoPlant.slx"));
     copyfile(fullfile(srcDir, "DemoController.slx"), ...
         fullfile(tmpDir, "DemoController.slx"));
+    copyfile(fullfile(srcDir, "Subsystem.slx"), ...
+        fullfile(tmpDir, "Subsystem.slx"));
+    copyfile(fullfile(srcDir, "mapToPlant.m"), ...
+        fullfile(tmpDir, "mapToPlant.m"));
     copyfile(fullfile(srcDir, "Data.sldd"), fullfile(tmpDir, "Data.sldd"));
+    copyfile(fullfile(srcDir, "gds-config.json"), ...
+        fullfile(tmpDir, "gds-config.json"));
 
     testCase.applyFixture(matlab.unittest.fixtures.PathFixture(tmpDir));
+    testCase.addTeardown(@() closeIfLoaded("ControlLane"));
     testCase.addTeardown(@() closeIfLoaded("DemoPlant"));
     testCase.addTeardown(@() closeIfLoaded("DemoController"));
+    testCase.addTeardown(@() closeIfLoaded("Subsystem"));
+    testCase.addTeardown(@() Simulink.data.dictionary.closeAll);
     testCase.addTeardown(@() removeTempFolder(tmpDir));
 end
 

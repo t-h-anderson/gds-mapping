@@ -9,6 +9,7 @@ classdef tMappingResult < matlab.unittest.TestCase
             testCase.verifyEqual(r.Status, eLumina.gds.map.ResultStatus.Unmapped);
             testCase.verifyEqual(r.IecPath.Path, "");
             testCase.verifyEqual(r.PlantPath, "");
+            testCase.verifyEqual(r.LinkedSignalPath, "");
             testCase.verifyEqual(r.RuleSource, "");
             testCase.verifyEqual(r.RuleOrigin, "");
             testCase.verifyEqual(r.Warning, "");
@@ -36,6 +37,20 @@ classdef tMappingResult < matlab.unittest.TestCase
                 Status = eLumina.gds.map.ResultStatus.Internal);
             testCase.verifyEqual(r.Status, eLumina.gds.map.ResultStatus.Internal);
             testCase.verifyEqual(r.PlantPath, "");
+            testCase.verifyEqual(r.IecPath.Path, "");
+            testCase.verifyEqual(r.LinkedSignalPath, "");
+        end
+
+        function tSignalMappedCarriesLinkedSignalPath(testCase)
+            sig = eLumina.gds.extract.SimulinkSignal( ...
+                "Lane1/toOtherLane", BusField = "toCtrl1.a");
+            r = eLumina.gds.map.MappingResult(sig, ...
+                LinkedSignalPath = "Lane2/fromOtherLane.toCtrl1.a", ...
+                Status = eLumina.gds.map.ResultStatus.SignalMapped);
+            testCase.verifyEqual(r.Status, ...
+                eLumina.gds.map.ResultStatus.SignalMapped);
+            testCase.verifyEqual(r.LinkedSignalPath, ...
+                "Lane2/fromOtherLane.toCtrl1.a");
             testCase.verifyEqual(r.IecPath.Path, "");
         end
 

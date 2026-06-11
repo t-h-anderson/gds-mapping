@@ -12,10 +12,12 @@ classdef RegexRule < eLumina.gds.rules.MappingRule
                 nvp.Pattern (1,1) string = ""
                 nvp.Template (1,1) string = ""
                 nvp.Notes (1,1) string = ""
+                nvp.TargetKind (1,1) string {mustBeMember(nvp.TargetKind, ["iec", "signal"])} = "iec"
             end
             obj.Pattern = nvp.Pattern;
             obj.Template = nvp.Template;
             obj.Notes = nvp.Notes;
+            obj.TargetKind = nvp.TargetKind;
         end
 
         function [matched, path, broken, warning] = applyTo(obj, signal, nvp)
@@ -31,7 +33,7 @@ classdef RegexRule < eLumina.gds.rules.MappingRule
                 obj.Template, nvp.Variables);
             patternWarning = obj.formatPlaceholderWarning("Pattern", ...
                 patternMissing);
-            templateWarning = obj.formatPlaceholderWarning("IEC template", ...
+            templateWarning = obj.formatPlaceholderWarning(obj.targetLabel() + " template", ...
                 templateMissing);
 
             path = eLumina.gds.iec.IecPath("");
@@ -73,7 +75,19 @@ classdef RegexRule < eLumina.gds.rules.MappingRule
         end
 
         function s = describe(obj)
-            s = "regex: " + obj.Pattern;
+            if obj.TargetKind == "signal"
+                s = "signal regex: " + obj.Pattern;
+            else
+                s = "regex: " + obj.Pattern;
+            end
+        end
+
+        function kind = csvKind(obj)
+            if obj.TargetKind == "signal"
+                kind = "signalRegex";
+            else
+                kind = "regex";
+            end
         end
 
         function warning = placeholderWarning(obj, variables)
@@ -83,7 +97,18 @@ classdef RegexRule < eLumina.gds.rules.MappingRule
                 obj.Template, variables);
             warning = obj.combineWarnings([ ...
                 obj.formatPlaceholderWarning("Pattern", patternMissing), ...
-                obj.formatPlaceholderWarning("IEC template", templateMissing)]);
+                obj.formatPlaceholderWarning(obj.targetLabel() + " template", ...
+                    templateMissing)]);
+        end
+    end
+
+    methods (Access = private)
+        function label = targetLabel(obj)
+            if obj.TargetKind == "signal"
+                label = "Signal";
+            else
+                label = "IEC";
+            end
         end
     end
 end

@@ -1,10 +1,11 @@
 classdef MappingResult
-    %MAPPINGRESULT One Simulink signal paired with its resolved IEC path.
+    %MAPPINGRESULT One Simulink signal paired with its resolved target.
 
     properties (SetAccess = protected)
         Signal (1,1) eLumina.gds.extract.SimulinkSignal
         IecPath (1,1) eLumina.gds.iec.IecPath
         PlantPath (1,1) string = ""
+        LinkedSignalPath (1,1) string = ""
         RuleSource (1,1) string = ""
         RuleOrigin (1,1) string = ""
         RuleIndex (1,1) double = 0
@@ -20,6 +21,7 @@ classdef MappingResult
                 signal (1,1) eLumina.gds.extract.SimulinkSignal
                 nvp.IecPath (1,1) eLumina.gds.iec.IecPath = eLumina.gds.iec.IecPath("")
                 nvp.PlantPath (1,1) string = ""
+                nvp.LinkedSignalPath (1,1) string = ""
                 nvp.RuleSource (1,1) string = ""
                 nvp.RuleOrigin (1,1) string = ""
                 nvp.RuleIndex (1,1) double = 0
@@ -31,6 +33,7 @@ classdef MappingResult
             obj.Signal = signal;
             obj.IecPath = nvp.IecPath;
             obj.PlantPath = nvp.PlantPath;
+            obj.LinkedSignalPath = nvp.LinkedSignalPath;
             obj.RuleSource = nvp.RuleSource;
             obj.RuleOrigin = nvp.RuleOrigin;
             obj.RuleIndex = nvp.RuleIndex;

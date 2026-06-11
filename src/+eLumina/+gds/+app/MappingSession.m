@@ -25,6 +25,7 @@ classdef MappingSession < handle
     properties (Access = private)
         PlantPaths (1,:) string = string.empty
         IsInternal (1,:) logical = logical.empty
+        LinkedSignalPaths (1,:) string = string.empty
         ConfigValues = struct()
         HasExplicitConfig (1,1) logical = false
     end
@@ -110,6 +111,7 @@ classdef MappingSession < handle
             obj.Signals = signals;
             obj.PlantPaths = string.empty;
             obj.IsInternal = logical.empty;
+            obj.LinkedSignalPaths = string.empty;
             obj.recompute();
         end
 
@@ -121,11 +123,12 @@ classdef MappingSession < handle
             obj.ModelPath = modelPath;
             signals = eLumina.gds.extract.extractSignals(modelPath);
             [~, modelName] = fileparts(modelPath);
-            [pp, ii] = eLumina.gds.extract.tracePlantPaths( ...
+            [pp, ii, links] = eLumina.gds.extract.tracePlantPaths( ...
                 string(modelName), signals);
             obj.Signals = signals;
             obj.PlantPaths = pp;
             obj.IsInternal = ii;
+            obj.LinkedSignalPaths = links;
             obj.recompute();
         end
 
@@ -184,7 +187,8 @@ classdef MappingSession < handle
             obj.recompute();
         end
 
-        function [matched, iecPath, ruleDisplay, ruleOrigin, warning, status] = testSignal(obj, pathStr)
+        function [matched, iecPath, ruleDisplay, ruleOrigin, warning, status, ...
+                linkedSignalPath] = testSignal(obj, pathStr)
             %TESTSIGNAL Try the current rules against a hypothetical path.
             %   Stateless: does not touch Signals or Results. ruleDisplay
             %   is the pre-formatted "[N] kind: pattern (shadows [...])"
@@ -194,10 +198,11 @@ classdef MappingSession < handle
                 pathStr (1,1) string
             end
             sig = eLumina.gds.extract.SimulinkSignal(pathStr);
-            [matched, path, ruleIdx, shadows, broken, warning] = obj.Rules.applyTo( ...
+            [matched, path, ruleIdx, shadows, broken, warning, targetKind] = obj.Rules.applyTo( ...
                 sig, Variables = obj.ConfigValues);
             iecPath = path.Path;
             ruleOrigin = "";
+            linkedSignalPath = "";
             if matched
                 rule = obj.Rules.Rules(ruleIdx);
                 source = rule.describe();
@@ -205,7 +210,12 @@ classdef MappingSession < handle
                     ruleIdx, source, shadows);
                 ruleOrigin = rule.provenance();
                 if broken
+                    iecPath = "";
                     status = eLumina.gds.map.ResultStatus.Broken;
+                elseif targetKind == "signal"
+                    linkedSignalPath = path.Path;
+                    iecPath = "";
+                    status = eLumina.gds.map.ResultStatus.SignalMapped;
                 else
                     status = eLumina.gds.map.ResultStatus.Mapped;
                 end
@@ -228,6 +238,7 @@ classdef MappingSession < handle
         function recompute(obj)
             obj.Results = eLumina.gds.map.runMapping(obj.Signals, obj.Rules, ...
                 PlantPaths = obj.PlantPaths, IsInternal = obj.IsInternal, ...
+                LinkedSignalPaths = obj.LinkedSignalPaths, ...
                 Variables = obj.ConfigValues);
             notify(obj, "Changed");
         end

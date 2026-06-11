@@ -4,18 +4,19 @@ function results = runMapping(signals, ruleSet, nvp)
     %   results = runMapping(signals, ruleSet)
     %   results = runMapping(signals, ruleSet, PlantPaths=..., IsInternal=...)
     %
-    %   Rules match against the plant-world path. With no PlantPaths the
-    %   plant path defaults to each signal's own controller-side path
+    %   IEC rules match against the plant-world path. With no PlantPaths
+    %   the plant path defaults to each signal's own controller-side path
     %   (the no-model / string-list case). With a model, the caller
-    %   passes the traced plant paths plus per-signal internal flags;
-    %   internal signals (no plant equivalent) get Status = Internal and
-    %   skip rule matching.
+    %   passes the traced plant paths plus per-signal internal flags.
+    %   Internal signals can carry a traced LinkedSignalPaths entry;
+    %   otherwise they get Status = Internal.
 
     arguments
         signals (1,:) eLumina.gds.extract.SimulinkSignal
         ruleSet (1,1) eLumina.gds.rules.RuleSet
         nvp.PlantPaths (1,:) string = string.empty
         nvp.IsInternal (1,:) logical = logical.empty
+        nvp.LinkedSignalPaths (1,:) string = string.empty
         nvp.Variables = struct()
     end
 
@@ -33,34 +34,36 @@ function results = runMapping(signals, ruleSet, nvp)
     if isempty(isInternal)
         isInternal = false(1, n);
     end
-    if numel(plantPaths) ~= n || numel(isInternal) ~= n
+    linkedSignalPaths = nvp.LinkedSignalPaths;
+    if isempty(linkedSignalPaths)
+        linkedSignalPaths = strings(1, n);
+    end
+    if numel(plantPaths) ~= n || numel(isInternal) ~= n || numel(linkedSignalPaths) ~= n
         error("eLumina:gds:map:lengthMismatch", ...
-            "PlantPaths and IsInternal must be the same length as signals.");
+            "PlantPaths, IsInternal, and LinkedSignalPaths must be the same length as signals.");
     end
 
     results = repmat(eLumina.gds.map.MappingResult(signals(1)), 1, n);
     for k = 1:n
         if isInternal(k)
-            results(k) = eLumina.gds.map.MappingResult(signals(k), ...
-                Status = eLumina.gds.map.ResultStatus.Internal);
+            if linkedSignalPaths(k) ~= ""
+                results(k) = eLumina.gds.map.MappingResult(signals(k), ...
+                    LinkedSignalPath = linkedSignalPaths(k), ...
+                    Status = eLumina.gds.map.ResultStatus.SignalMapped);
+            else
+                results(k) = eLumina.gds.map.MappingResult(signals(k), ...
+                    Status = eLumina.gds.map.ResultStatus.Internal);
+            end
             continue
         end
         plantPath = plantPaths(k);
         matchSig = eLumina.gds.extract.SimulinkSignal(plantPath);
-        [matched, path, ruleIdx, shadows, broken, warning] = ruleSet.applyTo( ...
+        [matched, path, ruleIdx, shadows, broken, warning, targetKind] = ruleSet.applyTo( ...
             matchSig, Variables = nvp.Variables);
         if matched
             rule = ruleSet.Rules(ruleIdx);
-            results(k) = eLumina.gds.map.MappingResult(signals(k), ...
-                IecPath = path, ...
-                PlantPath = plantPath, ...
-                RuleSource = rule.describe(), ...
-                RuleOrigin = rule.provenance(), ...
-                RuleIndex = ruleIdx, ...
-                Status = ternaryStatus(broken), ...
-                Warning = warning, ...
-                IsOverride = ~isempty(shadows), ...
-                Shadows = shadows);
+            results(k) = matchedResult(signals(k), path, rule, ruleIdx, ...
+                shadows, broken, warning, plantPath, targetKind);
         else
             results(k) = eLumina.gds.map.MappingResult(signals(k), ...
                 PlantPath = plantPath, ...
@@ -69,10 +72,28 @@ function results = runMapping(signals, ruleSet, nvp)
     end
 end
 
-function status = ternaryStatus(broken)
+function result = matchedResult(signal, path, rule, ruleIdx, shadows, broken, warning, plantPath, targetKind)
+    linkedSignalPath = "";
     if broken
+        iecPath = eLumina.gds.iec.IecPath("");
         status = eLumina.gds.map.ResultStatus.Broken;
+    elseif targetKind == "signal"
+        iecPath = eLumina.gds.iec.IecPath("");
+        linkedSignalPath = path.Path;
+        status = eLumina.gds.map.ResultStatus.SignalMapped;
     else
+        iecPath = path;
         status = eLumina.gds.map.ResultStatus.Mapped;
     end
+    result = eLumina.gds.map.MappingResult(signal, ...
+        IecPath = iecPath, ...
+        PlantPath = plantPath, ...
+        LinkedSignalPath = linkedSignalPath, ...
+        RuleSource = rule.describe(), ...
+        RuleOrigin = rule.provenance(), ...
+        RuleIndex = ruleIdx, ...
+        Status = status, ...
+        Warning = warning, ...
+        IsOverride = ~isempty(shadows), ...
+        Shadows = shadows);
 end

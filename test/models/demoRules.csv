@@ -1,9 +1,15 @@
 Kind,SimulinkPattern,IecPathTemplate,Notes
-# Flattened single-file demo for test/models/DemoPlant.slx.
+# Flattened single-file demo for test/models/ControlLane.slx.
 # For layered loading, use demoOverrideRules.csv before demoBaseRules.csv.
 # Project variables come from gds-config.json in the same folder.
-explicit,Plant/pIn.${overrideSignal}_${plantSuffix},${overrideTarget},one-off override to show explicit beats regex
-regex,^Plant/pIn\.(\w+)_${plantSuffix}$,${measurementLn}.PhV.${1}_${plantSuffix}.cVal.mag.f,plant sensor measurements
-regex,^Plant/pOut\.(\w+)_${plantSuffix}$,${breakerOutLn}.Pos.${1}_${plantSuffix}.ctlVal,commands into plant output bus
-regex,^Plant/In1\.(\w+)_${plantSuffix}$,${breakerInLn}.Pos.${1}_${plantSuffix}.ctlVal,commands into plant input 1
-regex,^Inputs/Out1\.(\w+)_${paramSuffix}$,${hmiLn}.${1}_${paramSuffix}.setMag.f,HMI parameters
+explicit,fromPlant.${overrideSignal}_${plantSuffix},${overrideTarget},one-off override to show explicit beats regex
+regex,^fromPlant\.(\w+)_${plantSuffix}$,${measurementLn}.PhV.${1}_${plantSuffix}.cVal.mag.f,plant input measurements
+regex,^plantIn\.pOut\.(\w+)_${plantSuffix}$,${breakerOutLn}.Pos.${1}_${plantSuffix}.ctlVal,commands on first lane plant input
+regex,^plantIn\.pOut1\.(\w+)_${plantSuffix}$,${breakerInLn}.Pos.${1}_${plantSuffix}.ctlVal,commands on second lane plant input
+regex,^params\.(\w+)_${paramSuffix}$,${hmiLn}.${1}_${paramSuffix}.setMag.f,HMI parameters
+regex,^Subsystem/fromPlant\.(\w+)_${plantSuffix}$,${measurementLn}.PhV.${1}_${plantSuffix}.cVal.mag.f,top-level plant input measurements
+regex,^Subsystem/In1\.lane1\.pOut\.(\w+)_${plantSuffix}$,${breakerOutLn}.Pos.${1}_${plantSuffix}.ctlVal,lane 1 first plant input bundle
+regex,^Subsystem/In1\.lane1\.pOut1\.(\w+)_${plantSuffix}$,${breakerInLn}.Pos.${1}_${plantSuffix}.ctlVal,lane 1 second plant input bundle
+regex,^Subsystem/In1\.lane2\.pOut\.(\w+)_${plantSuffix}$,${breakerOutLn}.Pos.${1}_${plantSuffix}.ctlVal,lane 2 first plant input bundle
+regex,^Subsystem/In1\.lane2\.pOut1\.(\w+)_${plantSuffix}$,${breakerInLn}.Pos.${1}_${plantSuffix}.ctlVal,lane 2 second plant input bundle
+regex,^Inputs/params\.(\w+)_${paramSuffix}$,${hmiLn}.${1}_${paramSuffix}.setMag.f,top-level HMI parameters

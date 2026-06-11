@@ -98,5 +98,22 @@ classdef treadRules < matlab.unittest.TestCase
             testCase.verifyEqual(rs.Rules(2).provenance(), "rules.csv:5");
             testCase.verifyEqual(rs.Rules(1).RuleLayer, "base");
         end
+
+        function tParsesSignalRuleKinds(testCase)
+            testCase.applyFixture(matlab.unittest.fixtures.WorkingFolderFixture);
+            writelines([ ...
+                "Kind,SimulinkPattern,IecPathTemplate,Notes"; ...
+                "signalRegex,^Lane1/toOtherLane\.(.+)$,Lane2/fromOtherLane.${1},link"; ...
+                "signalExplicit,Lane2/toOtherLane.x,Lane1/fromOtherLane.x,link"], ...
+                "rules.csv");
+
+            rs = eLumina.gds.io.readRules("rules.csv");
+
+            testCase.verifyEqual(numel(rs.Rules), 2);
+            testCase.verifyEqual(rs.Rules(1).TargetKind, "signal");
+            testCase.verifyEqual(rs.Rules(1).csvKind(), "signalRegex");
+            testCase.verifyEqual(rs.Rules(2).TargetKind, "signal");
+            testCase.verifyEqual(rs.Rules(2).csvKind(), "signalExplicit");
+        end
     end
 end
