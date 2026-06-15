@@ -15,9 +15,10 @@ function view = launch(nvp)
     end
 
     session = eLumina.gds.app.MappingSession();
+    view = eLumina.gds.app.MappingView(session);
 
     if nvp.ModelPath ~= ""
-        session.loadModel(nvp.ModelPath);
+        view.loadModel(nvp.ModelPath);
     elseif ~isempty(nvp.Signals)
         sigs = arrayfun( ...
             @(p) eLumina.gds.extract.SimulinkSignal(p), nvp.Signals);
@@ -25,14 +26,12 @@ function view = launch(nvp)
     end
 
     if nvp.RulesPath ~= ""
-        session.loadRules(nvp.RulesPath, ConfigPath = nvp.ConfigPath);
+        view.loadRules(nvp.RulesPath, ConfigPath=nvp.ConfigPath);
     elseif nvp.ConfigPath ~= ""
-        session.loadConfig(nvp.ConfigPath);
+        view.loadConfig(nvp.ConfigPath);
     end
 
     if nvp.BaseRulesPath ~= ""
-        session.loadBaseRules(nvp.BaseRulesPath);
+        view.loadBaseRules(nvp.BaseRulesPath);
     end
-
-    view = eLumina.gds.app.MappingView(session);
 end

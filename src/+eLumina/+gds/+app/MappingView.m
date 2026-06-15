@@ -21,6 +21,8 @@ classdef MappingView < handle
         Figure
         ResultsTable
         RulesTable
+        StatusStack
+        StatusBar
         TestInput
         TestMatchLabel
         TestPathLabel
@@ -34,6 +36,7 @@ classdef MappingView < handle
                 session (1,1) eLumina.gds.app.MappingSession
             end
             obj.Session = session;
+            obj.StatusStack = statusMgr.Stack();
             obj.build();
             obj.ChangedListener = addlistener(session, "Changed", ...
                 @(~,~) obj.refresh());
@@ -46,6 +49,66 @@ classdef MappingView < handle
                 delete(obj.Figure);
             end
         end
+
+        function loadModel(obj, modelPath)
+            arguments
+                obj
+                modelPath (1,1) string {mustBeFile}
+            end
+            [~, name, ext] = fileparts(modelPath);
+            obj.runWithStatus("Opening model " + name + ext, ...
+                @() obj.Session.loadModel(modelPath));
+        end
+
+        function loadRules(obj, path, nvp)
+            arguments
+                obj
+                path (1,1) string {mustBeFile}
+                nvp.ConfigPath (1,1) string = ""
+            end
+            [~, name, ext] = fileparts(path);
+            obj.runWithStatus("Loading override rules " + name + ext, ...
+                @() obj.Session.loadRules(path, ConfigPath=nvp.ConfigPath));
+        end
+
+        function loadBaseRules(obj, path)
+            arguments
+                obj
+                path (1,1) string {mustBeFile}
+            end
+            [~, name, ext] = fileparts(path);
+            obj.runWithStatus("Loading base rules " + name + ext, ...
+                @() obj.Session.loadBaseRules(path));
+        end
+
+        function loadConfig(obj, path)
+            arguments
+                obj
+                path (1,1) string {mustBeFile}
+            end
+            [~, name, ext] = fileparts(path);
+            obj.runWithStatus("Loading config " + name + ext, ...
+                @() obj.Session.loadConfig(path));
+        end
+
+        function saveRules(obj, path)
+            arguments
+                obj
+                path (1,1) string = ""
+            end
+            obj.runWithStatus("Saving override rules", ...
+                @() obj.Session.saveRules(path));
+        end
+
+        function exportResults(obj, path)
+            arguments
+                obj
+                path (1,1) string
+            end
+            [~, name, ext] = fileparts(path);
+            obj.runWithStatus("Exporting results " + name + ext, ...
+                @() obj.Session.exportResults(path));
+        end
     end
 
     methods (Access = private)
@@ -54,12 +117,13 @@ classdef MappingView < handle
                 Name = "GDS Mapping", ...
                 Position = [100 100 1200 760]);
 
-            main = uigridlayout(obj.Figure, [3 1], ...
-                RowHeight = {40, "1x", 260}, ColumnWidth = {"1x"});
+            main = uigridlayout(obj.Figure, [4 1], ...
+                RowHeight = {40, "1x", 260, 28}, ColumnWidth = {"1x"});
 
             obj.buildTopBar(main, 1);
             obj.buildMiddle(main, 2);
             obj.buildRulesEditor(main, 3);
+            obj.buildStatusBar(main, 4);
         end
 
         function buildTopBar(obj, parent, row)
@@ -160,6 +224,13 @@ classdef MappingView < handle
             obj.RulesTable.Layout.Column = 1;
         end
 
+        function buildStatusBar(obj, parent, row)
+            obj.StatusBar = statusMgr.view.StatusBar(parent, obj.StatusStack, ...
+                ShowInfo=false);
+            obj.StatusBar.Layout.Layout.Row = row;
+            obj.StatusBar.Layout.Layout.Column = 1;
+        end
+
         function refresh(obj)
             obj.ResultsTable.Data = obj.resultsToTable(obj.Session.Results);
             obj.RulesTable.Data = obj.rulesToTable( ...
@@ -235,28 +306,28 @@ classdef MappingView < handle
                 {'*.slx;*.mdl', 'Simulink models (*.slx, *.mdl)'}, ...
                 'Load Simulink model');
             if isequal(file, 0); return; end
-            obj.Session.loadModel(string(fullfile(folder, file)));
+            obj.loadModel(string(fullfile(folder, file)));
         end
 
         function onLoadRules(obj)
             [file, folder] = uigetfile({'*.csv', 'CSV files (*.csv)'}, ...
                 'Load override rules CSV');
             if isequal(file, 0); return; end
-            obj.Session.loadRules(string(fullfile(folder, file)));
+            obj.loadRules(string(fullfile(folder, file)));
         end
 
         function onLoadBaseRules(obj)
             [file, folder] = uigetfile({'*.csv', 'CSV files (*.csv)'}, ...
                 'Load base rules CSV');
             if isequal(file, 0); return; end
-            obj.Session.loadBaseRules(string(fullfile(folder, file)));
+            obj.loadBaseRules(string(fullfile(folder, file)));
         end
 
         function onLoadConfig(obj)
             [file, folder] = uigetfile({'*.json', 'JSON files (*.json)'}, ...
                 'Load project config JSON');
             if isequal(file, 0); return; end
-            obj.Session.loadConfig(string(fullfile(folder, file)));
+            obj.loadConfig(string(fullfile(folder, file)));
         end
 
         function onSaveRules(obj)
@@ -264,9 +335,9 @@ classdef MappingView < handle
                 [file, folder] = uiputfile({'*.csv', 'CSV files (*.csv)'}, ...
                     'Save override rules CSV');
                 if isequal(file, 0); return; end
-                obj.Session.saveRules(string(fullfile(folder, file)));
+                obj.saveRules(string(fullfile(folder, file)));
             else
-                obj.Session.saveRules();
+                obj.saveRules();
             end
         end
 
@@ -275,7 +346,34 @@ classdef MappingView < handle
             [file, folder] = uiputfile({'*.csv', 'CSV files (*.csv)'}, ...
                 'Export results CSV', defaultName);
             if isequal(file, 0); return; end
-            obj.Session.exportResults(string(fullfile(folder, file)));
+            obj.exportResults(string(fullfile(folder, file)));
+        end
+
+        function runWithStatus(obj, message, fcn)
+            arguments
+                obj
+                message (1,1) string
+                fcn (1,1) function_handle
+            end
+            [~, cleanup] = obj.StatusStack.addStatus( ...
+                statusMgr.StatusType.Running, ...
+                Identifier="eLumina:gds:app:running", ...
+                Message=message, ...
+                MessageShort=message); %#ok<ASGLU>
+            drawnow
+            try
+                fcn();
+            catch err
+                obj.StatusStack.addError(err, CreateCleanupObj=false);
+                rethrow(err);
+            end
+            obj.StatusStack.addStatus( ...
+                statusMgr.StatusType.Success, ...
+                Identifier="eLumina:gds:app:success", ...
+                Message=message + " complete.", ...
+                MessageShort=message + " complete.", ...
+                IsTemporary=true);
+            drawnow
         end
 
         function name = defaultExportName(obj)
