@@ -19,10 +19,15 @@ function [plantPaths, isInternal, linkedSignalPaths] = tracePlantPaths(modelName
     plantPaths = strings(1, n);
     isInternal = false(1, n);
     linkedSignalPaths = strings(1, n);
-    candidateLinks = eLumina.gds.extract.traceSignalLinks(modelName, signals);
+    candidateLinks = strings(1, n);
+    haveCandidateLinks = false;
     for k = 1:n
         ps = eLumina.gds.extract.traceToPlant(modelName, signals(k));
         if isempty(ps)
+            if ~haveCandidateLinks
+                candidateLinks = eLumina.gds.extract.traceSignalLinks(modelName, signals);
+                haveCandidateLinks = true;
+            end
             isInternal(k) = true;
             linkedSignalPaths(k) = candidateLinks(k);
         else

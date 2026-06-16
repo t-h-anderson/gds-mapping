@@ -8,7 +8,7 @@ classdef tMappingView < matlab.unittest.TestCase
         function tInstantiatesAndCleansUp(testCase)
             session = eLumina.gds.app.MappingSession();
             view = eLumina.gds.app.MappingView(session);
-            cleanup = onCleanup(@() delete(view)); %#ok<NASGU>
+            cleanup = onCleanup(@() delete(view));
 
             testCase.verifyClass(view.Session, ...
                 "eLumina.gds.app.MappingSession");
@@ -17,7 +17,7 @@ classdef tMappingView < matlab.unittest.TestCase
         function tRefreshesOnSessionChange(testCase)
             session = eLumina.gds.app.MappingSession();
             view = eLumina.gds.app.MappingView(session);
-            cleanup = onCleanup(@() delete(view)); %#ok<NASGU>
+            cleanup = onCleanup(@() delete(view));
 
             session.addRule(eLumina.gds.rules.RegexRule( ...
                 Pattern = "^foo$", Template = "bar"));
@@ -25,6 +25,17 @@ classdef tMappingView < matlab.unittest.TestCase
 
             testCase.verifyEqual(numel(session.Results), 1);
             testCase.verifyEqual(session.Results(1).IecPath.Path, "bar");
+        end
+
+        function tRegistersCurrentView(testCase)
+            session = eLumina.gds.app.MappingSession();
+            view = eLumina.gds.app.MappingView(session);
+            cleanup = onCleanup(@() delete(view));
+
+            [current, found] = eLumina.gds.app.MappingView.currentView();
+
+            testCase.verifyTrue(found);
+            testCase.verifyTrue(current == view);
         end
     end
 end
