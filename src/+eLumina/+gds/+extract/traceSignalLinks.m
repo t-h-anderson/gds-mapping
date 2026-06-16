@@ -95,7 +95,33 @@ function linkedPath = traceForwardDestination(dstBlock, dstPort, field, endpoint
                 linkedPath = traceForwardEndpoint( ...
                     dstBlock, nextPort, nextField, endpoints, modelName);
             end
+        case "Goto"
+            linkedPath = traceForwardSources( ...
+                fromBlocksForGoto(dstBlock), field, endpoints, modelName);
     end
+end
+
+function linkedPath = traceForwardSources(srcBlocks, field, endpoints, modelName)
+    linkedPath = "";
+    candidates = strings(1, 0);
+    for k = 1:numel(srcBlocks)
+        candidate = traceForwardEndpoint( ...
+            srcBlocks(k), 1, field, endpoints, modelName);
+        if candidate == "" || any(candidates == candidate)
+            continue
+        end
+        candidates(end+1) = candidate; %#ok<AGROW>
+    end
+
+    if isempty(candidates)
+        return
+    end
+    if numel(candidates) > 1
+        error("eLumina:gds:extract:ambiguousSignalLink", ...
+            "Goto/From signal fans out to multiple extracted signals: %s", ...
+            strjoin(candidates, ", "));
+    end
+    linkedPath = candidates(1);
 end
 
 function endpoint = endpointAtInput(blockPath, portNum, field, endpoints, modelName)
@@ -284,4 +310,47 @@ end
 
 function bt = blockType(blockPath)
     bt = string(get_param(char(blockPath), "BlockType"));
+end
+
+function fromBlocks = fromBlocksForGoto(gotoBlock)
+    fromBlocks = string.empty(1, 0);
+    tag = string(get_param(char(gotoBlock), "GotoTag"));
+    if tag == ""
+        return
+    end
+
+    candidates = string(find_system(char(bdroot(char(gotoBlock))), ...
+        "LookUnderMasks", "all", ...
+        "BlockType", "From", ...
+        "GotoTag", char(tag)));
+    if isempty(candidates)
+        return
+    end
+
+    gotoHandle = get_param(char(gotoBlock), "Handle");
+    matches = false(size(candidates));
+    for i = 1:numel(candidates)
+        matches(i) = fromResolvesToGoto(candidates(i), gotoBlock, gotoHandle);
+    end
+    fromBlocks = candidates(matches);
+end
+
+function tf = fromResolvesToGoto(fromBlock, gotoBlock, gotoHandle)
+    tf = false;
+    try
+        gotoInfo = get_param(char(fromBlock), "GotoBlock");
+    catch
+        return
+    end
+
+    if ~isstruct(gotoInfo)
+        return
+    end
+    if isfield(gotoInfo, "handle") && gotoInfo.handle == gotoHandle
+        tf = true;
+        return
+    end
+    if isfield(gotoInfo, "name") && string(gotoInfo.name) == gotoBlock
+        tf = true;
+    end
 end

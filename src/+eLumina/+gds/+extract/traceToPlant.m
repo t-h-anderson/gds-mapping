@@ -92,6 +92,14 @@ function [plantSig, ok] = traceBack(blockPath, portNum, field, refStack, topMode
             [plantSig, ok] = traceBack( ...
                 srcBlock, nextPort, nextField, refStack, topModelName);
             return
+        case "From"
+            gotoBlock = gotoBlockForFrom(srcBlock);
+            if gotoBlock == ""
+                return
+            end
+            [plantSig, ok] = traceBack( ...
+                gotoBlock, 1, field, refStack, topModelName);
+            return
     end
 
     if isMFB(srcBlock)
@@ -191,6 +199,11 @@ function [plantSig, ok] = traceFwdToDestination(dstBlock, dstPort, field, refSta
             [plantSig, ok] = traceFwd( ...
                 dstBlock, nextPort, nextField, refStack, topModelName);
             return
+        case "Goto"
+            fromBlocks = fromBlocksForGoto(dstBlock);
+            [plantSig, ok] = resolveForwardSources( ...
+                dstBlock, fromBlocks, field, refStack, topModelName);
+            return
     end
 
     if isMFB(dstBlock)
@@ -205,6 +218,38 @@ function [plantSig, ok] = traceFwdToDestination(dstBlock, dstPort, field, refSta
     end
 
     [plantSig, ok] = terminal(dstBlock, dstPort, "Inport", field);
+end
+
+function [plantSig, ok] = resolveForwardSources(blockPath, srcBlocks, field, refStack, topModelName)
+    plantSig = eLumina.gds.extract.PlantSignal.empty(1, 0);
+    ok = false;
+    candidatePaths = string.empty(1, 0);
+    candidate = eLumina.gds.extract.PlantSignal.empty(1, 0);
+    for i = 1:numel(srcBlocks)
+        [nextSig, nextOk] = traceFwd( ...
+            srcBlocks(i), 1, field, refStack, topModelName);
+        if ~nextOk
+            continue
+        end
+        nextPath = nextSig.fullPath();
+        if any(candidatePaths == nextPath)
+            continue
+        end
+        candidatePaths(end+1) = nextPath; %#ok<AGROW>
+        candidate = nextSig;
+    end
+
+    if isempty(candidatePaths)
+        return
+    end
+    if numel(candidatePaths) > 1
+        error("eLumina:gds:extract:ambiguousTrace", ...
+            "Signal '%s' fans out to multiple terminals: %s", ...
+            blockPath, strjoin(candidatePaths, ", "));
+    end
+
+    plantSig = candidate;
+    ok = true;
 end
 
 function [plantSig, ok] = traceBackThroughInport(portBlock, field, refStack, topModelName)
@@ -557,6 +602,68 @@ function refModel = loadReferencedModel(refBlock)
     refModel = string(get_param(char(refBlock), "ModelName"));
     if refModel ~= "" && ~bdIsLoaded(char(refModel))
         load_system(char(refModel));
+    end
+end
+
+function gotoBlock = gotoBlockForFrom(fromBlock)
+    gotoBlock = "";
+    try
+        gotoInfo = get_param(char(fromBlock), "GotoBlock");
+    catch
+        return
+    end
+
+    if isstruct(gotoInfo)
+        if isfield(gotoInfo, "name") && string(gotoInfo.name) ~= ""
+            gotoBlock = string(gotoInfo.name);
+            return
+        end
+        if isfield(gotoInfo, "handle") && gotoInfo.handle ~= -1
+            gotoBlock = string(getfullname(gotoInfo.handle));
+        end
+    end
+end
+
+function fromBlocks = fromBlocksForGoto(gotoBlock)
+    fromBlocks = string.empty(1, 0);
+    tag = string(get_param(char(gotoBlock), "GotoTag"));
+    if tag == ""
+        return
+    end
+
+    candidates = string(find_system(char(bdroot(char(gotoBlock))), ...
+        "LookUnderMasks", "all", ...
+        "BlockType", "From", ...
+        "GotoTag", char(tag)));
+    if isempty(candidates)
+        return
+    end
+
+    gotoHandle = get_param(char(gotoBlock), "Handle");
+    matches = false(size(candidates));
+    for i = 1:numel(candidates)
+        matches(i) = fromResolvesToGoto(candidates(i), gotoBlock, gotoHandle);
+    end
+    fromBlocks = candidates(matches);
+end
+
+function tf = fromResolvesToGoto(fromBlock, gotoBlock, gotoHandle)
+    tf = false;
+    try
+        gotoInfo = get_param(char(fromBlock), "GotoBlock");
+    catch
+        return
+    end
+
+    if ~isstruct(gotoInfo)
+        return
+    end
+    if isfield(gotoInfo, "handle") && gotoInfo.handle == gotoHandle
+        tf = true;
+        return
+    end
+    if isfield(gotoInfo, "name") && string(gotoInfo.name) == gotoBlock
+        tf = true;
     end
 end
 
