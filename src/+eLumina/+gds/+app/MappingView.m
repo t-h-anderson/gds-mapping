@@ -130,7 +130,6 @@ classdef MappingView < handle
                 Message=message, ...
                 MessageShort=message, ...
                 IsTemporary=true);
-            drawnow
         end
 
         function show(obj)
